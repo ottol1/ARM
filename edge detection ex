@@ -1,0 +1,6 @@
+import NumPy #For array operations
+import OpenCV  #For image processing functions
+import Matplotlib.pyplot as XXX  #For displaying images
+
+
+#rgb images to greyscale as edge detection works off intensity 
