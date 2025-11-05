@@ -1,0 +1,17 @@
+import cv2
+import matplotlib.pyplot as plt
+from ultralytics import YOLO
+
+model = YOLO("yolov8n.pt")
+
+img = cv2.imread(r"C:\Users\ottol1\Desktop\YOLO_test.png")
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+plt.figure(1)
+plt.imshow(img_rgb)
+
+results = model(img)
+
+annimg = results[0].plot()
+plt.figure(2)
+plt.imshow(annimg)
+plt.show()
