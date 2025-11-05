@@ -1,0 +1,19 @@
+from ultralytics import YOLO
+import cv2
+import time
+
+model = YOLO('yolov8n.pt')
+
+cam = cv2.VideoCapture(0) # Open the video file
+preview(cam)
+
+for i in range(30):
+    ret, frame = cam.read() # Read the first frame to confirm reading
+    filename = f"pic{i+1}.png"
+    cv2.imwrite(filename, frame)
+    time.sleep(1)
+
+
+results = model(frame, stream=True)
+
+
