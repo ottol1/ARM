@@ -55,17 +55,19 @@ try:
 				cls_ii = int(box.cls[0])
 				label = model.names[cls_ii]
 
-				cv2.rectangle(c_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+				cv2.rectangle(c_frame, (x1, y1), (x2, y2), (0, 300, 0), 2)
 				cv2.putText(c_frame, f"{label} {conf: .2f}", (x1, y1 -10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-				midpoint_x = int( (x1 + x2)/2 )	
-				midpoint_y = int( (y1 + y2)/2 )
-				distance = depth_frame.get_distance(midpoint_x, midpoint_y)
+				#midpoint_x = int( (x1 + x2)/2 )	#x1 y1 top left corner x2 y2 bottom right corner
+				#midpoint_y = int( (y1 + y2)/2 )
+				
+				(x,y) = (x2 + x1)/2, (y2 + 1)/2
+				distance = depth_frame.get_distance(int(x), int(y))
 				depth = distance * depth_scales
 
 
-				cv2.circle(c_frame, (midpoint_x, midpoint_y), 5, (0, 0, 255), -1)
-				cv2.putText(c_frame, f"{distance: .2f}m", (midpoint_x + 10, midpoint_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+				cv2.circle(c_frame, (int(x), int(y)), 5, (0, 0, 255), -1)
+				cv2.putText(c_frame, f"{distance: .2f}m", (int(x) + 10, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 				
 				
 			
@@ -84,7 +86,6 @@ finally:
     	cv2.destroyAllWindows()
 
 #reval, mask_threshold = cv2.threshold(fg_mask, 180, 250, cv2.TRESH_BINARY)
-
 
 
 
