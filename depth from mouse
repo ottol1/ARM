@@ -1,0 +1,28 @@
+
+
+
+color = device.create_color_stream()
+color.start()
+rgFrame = color.read_frame
+
+depth = device.create_depth_stream()
+depth.start()
+
+ir = device.create_ir_stream()
+ir.start()
+irFrame = ir.read_frame()
+
+
+depthFrame = depth.read_frame()
+depthMat = np.frombuffer(depthFrame.get_buffer_as_uint16(), dtype=np.uint16).reshape(depthFrame.height, depthFrame.width, 1)
+roiMat = depthColorMap[y:y+h, x:x+w]
+
+
+
+def onMouseMove(event, x, y, flags, param):
+    global depthMat
+    if event == cv2.EVENT_MOUSEMOVE and depthMat is not None:
+        depth_value = depthMat[y, x]
+        print(f"Depth value at ({x},{y}) = {depth_value}")
+
+depth_value = depthMat[y, x]
