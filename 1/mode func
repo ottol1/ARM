@@ -1,0 +1,20 @@
+#	Robot Mode Functions
+def mode_1():
+	print("Mode 1 selected: Object detection")
+	print(object)
+def mode_2(joints):
+	print("Mode 2 selected: Set joint values")
+	print(joints)
+def mode_3(point):
+	print("Mode 3 selected: Set point in space")
+	print(point)
+ 
+def start_mode(mode, data):
+	if mode == 1:
+		mode_1(data)
+	elif mode == 2:
+		mode_2(data)
+	elif mode == 3:
+		mode_3(data)
+	else:
+		print("No mode selected")
