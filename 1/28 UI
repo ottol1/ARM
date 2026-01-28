@@ -1,0 +1,89 @@
+from tkinter import *
+from tkinter import ttk
+from defmodes import start_mode
+
+#	UI Setup 
+root = Tk()
+root.title("Robot Arm Control")
+frm = ttk.Frame(root, padding=10)
+frm.grid()
+mode = DoubleVar(value = 0)	#for floats, if using jst ints use Intvar()
+
+ 
+#	Mode selection
+ttk.Label(frm, text="Select Mode").grid(column=0, row=0, columnspan=2, pady=5)
+ttk.Radiobutton(frm, text="Mode 1: Object detection", variable=mode, value=1, command = lambda: show_inputs()).grid(column=0, row=1, sticky=W)
+ 
+ttk.Radiobutton(frm, text="Mode 2: Set joint values", variable=mode, value=2, command = lambda: show_inputs()).grid(column=0, row=2, sticky=W)
+ 
+ttk.Radiobutton(frm, text="Mode 3: Set point(s) in space", variable=mode, value=3, command = lambda: show_inputs()).grid(column=0, row=3, sticky=W)
+ 
+
+
+mode1 = ttk.Label(frm, text = "Define Object", padding = 5 )
+object = [] 
+ttk.Label(mode1, text = "Object Name").grid(column=0, row=0, sticky= E)
+ji = ttk.Entry(mode1)
+ji.grid(column = 1, row = 0)
+object.append(ji)
+
+
+
+#	want adddiional input page if modes 2 & 3 selected 
+#	when 2 or 3 are selected ask if multiple points(draw or pick and place)?
+ 
+#	Mode 2 input values 
+mode2 = ttk.Label(frm, text = "Joint inputs", padding = 5 )
+deg_values = []
+for i in range(5):
+	ttk.Label(mode2, text = f"joint {i+ 1}").grid(column=0, row=i, sticky= E)
+	ji = ttk.Entry(mode2)
+	ji.grid(column = 1, row = i)
+	deg_values.append(ji)
+ 
+ 
+#	Mode 3 input values 
+mode3 = ttk.Label(frm, text = "Joint inputs", padding = 5 )
+cartesian_coords = {}
+for i, axis in enumerate(["X", "Y", "Z"]):
+	ttk.Label(mode3, text = axis).grid(column=0, row=i, sticky= E)
+	ji = ttk.Entry(mode3)
+	ji.grid(column = 1, row = i)
+	cartesian_coords[axis] = ji
+ 
+def show_inputs():
+	mode1.grid_forget()
+	mode2.grid_forget()
+	mode3.grid_forget()
+
+	if mode.get() == 1:
+		mode1.grid(column=0, row = 4, columnspan = 2, pady = 10)
+	elif mode.get() == 2:
+		mode2.grid(column=0, row = 4, columnspan = 2, pady = 10)
+	elif mode.get() == 3:
+		mode3.grid(column=0, row = 4, columnspan = 2, pady = 10)
+ 
+def on_start():
+	selected =mode.get()
+ 
+
+	if selected == 1:
+		values = [e.get() for e in object]
+		start_mode(selected, values)
+	elif selected == 2:
+		values = [e.get() for e in deg_values]
+		start_mode(selected, values)
+	elif selected == 3:
+		values = {k: v.get() for k, v in cartesian_coords.items()}
+		start_mode(selected, point)
+	else:
+		start_mode(selected, None)
+ 
+#	req commands  
+#	in seperate fram yo avoid collision
+button_frame = ttk.Frame(frm)
+button_frame.grid(column = 0, row = 10, columnspan = 2 , pady = 10 )
+ 
+ttk.Button(button_frame, text="Start", command=on_start).grid(column=1,row=0, padx=10)
+ttk.Button(button_frame, text="Quit", command=root.destroy).grid(column=0,row=0, padx=10)
+root.mainloop()
