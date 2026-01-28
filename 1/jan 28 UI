@@ -50,7 +50,18 @@ for i, axis in enumerate(["X", "Y", "Z"]):
 	ji = ttk.Entry(mode3)
 	ji.grid(column = 1, row = i)
 	cartesian_coords[axis] = ji
+
+
+
+#	working on multiple points for entry 
+
+ttk.Button(frm, text="Add point", command= lambda).grid(column=z,row=6, pady=10)
  
+
+
+
+
+
 def show_inputs():
 	mode1.grid_forget()
 	mode2.grid_forget()
