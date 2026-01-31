@@ -2,46 +2,80 @@ import rclpy
 from rclpy.node import Node
 from trajectory_msgs.msg import JointTrajectory
 import serial
-import json
 import math
 
-curr_pos = []
-curr_vel = []
+# this should allow us to start opencm_command before or after the joint trajectory has been sent
+pos_deg = [154, 343, 165, 188, 157, 0] # default starting configuration
+vel_rpm = [30, 30, 30, 30, 30, 30] # safe velocity to move at
 
-class opencm_command(Node):
-    def __init__(self):
-        super().__init__('opencm_command_node')
-        self.subscription = self.create_subscription(
-            JointTrajectory,
-            '/joint_trajectory_controller/joint_trajectory',
-            self.listener_callback,
-            10)
-        self.ser = serial.Serial('/dev/ttyACM0', 115200) # make sure the OpenCM is set as ttyACM0, or find a way to make this more adaptive
 
-    def listener_callback(self, msg):
-        if not msg.points: return
-        
-        # take the most recent point in the trajectory
-        point = msg.points
-        
-        # this needs to be changed to actually match the units the servos use
-        # Convert radians (ROS) to degrees
-        pos_deg = [int(math.degrees(p)) for p in point.positions]
-        vel_deg = [int(math.degrees(v)) for v in point.velocities]
-
-        # Format string for broadcast frame: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
-        command = f"${','.join(map(str, pos_deg))},{','.join(map(str, vel_deg))}\n"
-        self.ser.write(command.encode())
-        
-        #read from serial to get current joint data
-        #joint_data = self.ser.read()
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = opencm_command()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == "__main__":
-    main()
+class opencmCommandNode(Node):
+	def __init__(self):
+		super().__init__('opencm_command_node')
+		
+		# start the serial connection
+		try:
+			self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) # try to make more adaptive to different serial ports
+			#self.get_logger().info("Connected to serial /dev/ttyACM0")
+		except Exception as e:
+			self.get_logger().error(f"Serial Error: {e}")
+			raise e
+		
+		#subscribe to joint_trajectory topic
+		self.subscription = self.create_subscription(
+			JointTrajectory,
+			'/joint_trajectory',
+			self.listener_callback,
+			10)
+			
+	def listener_callback(self, msg):
+		#get the most recent trajectory points
+		if msg.points: # if there is a new position and velocity, update it!
+			#get target positions and velocity from the first point in the trajectory, could be adapted to cycle through trajectory points?
+			point = msg.points[0]
+			
+			# format commands to send over serial
+			pos_deg = [int(math.degrees(p)) for p in point.positions]
+			vel_rpm = point.velocities # leave velocity in rpm
+			
+			
+		# check that it is allowed to send to the opencm and is not waiting to hear the current configuration
+		
+		# format string for broadcast: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6
+		command = f"${','.join(map(str, pos_deg))},{','.join(map(str, vel_rpm))}\n"
+		
+		# try to send command
+		try:
+			#self.get_logger().info(f"Sending Command: {command}")
+			self.ser.write(command.encode('utf-8'))
+			self.ser.flush() # wait for transmission to finish
+			#self.get_logger().info("Command Sent!")
+			
+		except Exception as e:
+			self.get_logger().error(f"Write failed: {e}")
+		
+		
+		try:
+			#self.get_logger().info("Waiting to recieve joint data")
+			jointData = self.ser.readline().decode('utf-8').rstrip()
+			#self.get_logger().info(f"Recieved Data: {jointData}")
+		except Exception as e:
+			self.get_logger().error("Failed to recieve joint data")
+		
+	def destroy_node(self):
+		self.ser.close()
+		super().destroy_node()
+		
+def main():
+	rclpy.init()
+	node = opencmCommandNode()
+	try:
+		rclpy.spin(node)
+	except KeyboardInterrupt:
+		pass
+	finally:
+		node.destroy_node()
+		rclpy.shutdown()
+	
+if __name__ == '__main__':
+	main()

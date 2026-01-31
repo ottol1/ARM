@@ -37,15 +37,17 @@ class TrajectoryToSerialNode(Node):
             
             # format string for broadcast: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n, but what if there is accidentally more than 6 values for each?
             command = f"${','.join(map(str, pos_deg))},{','.join(map(str, vel_deg))}\n"
-                        self.get_logger().info(f"Sending joint command {command}")
+            self.get_logger().info(f"Sending joint command {command}")
             
-            
+            # change to send initial command, but only 
             try:
                 self.ser.write(command.encode('utf-8'))
                 self.ser.flush() # Force immediate transmission
-                # self.get_logger().info(f"Sent: {data_str.strip()}")
+                self.get_logger().info(f"Sent: {command}")
+                
             except Exception as e:
                 self.get_logger().error(f"Write failed: {e}")
+        
 
     def destroy_node(self):
         self.ser.close()

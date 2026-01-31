@@ -13,6 +13,8 @@ import math
 
 settings = termios.tcgetattr(sys.stdin)
 
+default_velocity = 30.0 # RPM
+
 msg = """
 Reading from the keyboard and Publishing to JointTrajectory!
 ------------------------------------------------------------
@@ -82,8 +84,6 @@ def main(args=None):
 				
 				point = JointTrajectoryPoint()
 				point.positions = joints
-				
-				default_velocity = 0.5 # rad/s
 				point.velocities = [default_velocity]*6
 				
 				point.time_from_start.sec = 1
