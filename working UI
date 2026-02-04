@@ -44,21 +44,17 @@ entry_1.grid(row=0, column=0, pady=10)
 entry_1.grid_remove()	#	hide initially
 
 #----------------------------
-#	validation for joint inputs 
-def validate(value):
-	if value == "":
-		return True
+#	validation button press
+def validate(values):
 	try:
-		float(value)
-		return True
+		return all(v != "" and float(v) for v in values)
 	except ValueError:
 		return False
-vcomd = (app.register(validate), "%P")
 #----------------------------
 #	mode 2
 joint_entries = []
 for i in range (5):
-	j_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"Joint {i + 1} (deg)", validate = "key", validatecommand = vcomd)
+	j_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"Joint {i + 1} (deg)")
 	j_entry.grid(row=i, column=0, pady=5)
 	j_entry.grid_remove()#	hide initially
 	joint_entries.append(j_entry)
@@ -66,7 +62,7 @@ for i in range (5):
 #	mode 3
 coordinate_entries = []
 for i, lbl in enumerate(("X", "Y","Z")):
-	c_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"{lbl}", validate = "key", validatecommand = vcomd)
+	c_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"{lbl}")
 	c_entry.grid(row=i, column=0, pady=5)
 	c_entry.grid_remove()#	hide initially
 	coordinate_entries.append(c_entry)
@@ -132,15 +128,15 @@ def add_values():
  	
 	if mode.get() == 2:
 		vals = [j_entry.get() for j_entry in joint_entries]
-		if "" in vals:
+		if not validate(vals):
 			return
 		joint_count += 1
 		customtkinter.CTkLabel(joint_frame, text=f"{joint_count}: J1={vals[0]}, J2={vals[1]}, J3={vals[2]}, J4={vals[3]}, J5={vals[4]}").pack(anchor="w", pady=2)
  
 
 	if mode.get() == 3:
-		vals = [c_entry.get() for c_entry in joint_entries]
-		if "" in vals:
+		vals = [c_entry.get() for c_entry in coordinate_entries]
+		if not validate(vals):
 			return
 		coordinate_count += 1
 		customtkinter.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X={vals[0]}, Y={vals[1]}, Z={vals[2]}").pack(anchor="w", pady=2)
