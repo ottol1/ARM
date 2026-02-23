@@ -8,6 +8,7 @@ def run_mode(selected, object, joints, coordinates):
 			return
 		print(f"Running object detection on {object}")
 		Run.run_mode_1(object)
+		#want it to open new frame of camera view 
  
 	elif selected == 2:
 		val = [j_entry.get() for j_entry in joint_entries]
@@ -45,4 +46,5 @@ def run_mode(selected, object, joints, coordinates):
 	else:
 		print("No mode selected")
 		return
+
 
