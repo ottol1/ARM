@@ -1,0 +1,57 @@
+import logging
+import cv2
+import numpy as np
+import PIL.Image
+from nanoowl.tree import Tree
+from nanoowl.tree_predictor import (
+    TreePredictor
+)
+from nanoowl.tree_drawing import draw_tree_output
+from nanoowl.owl_predictor import OwlPredictor
+
+
+def main():
+    args = {"image": "/mnt/test/owl.jpg", "prompt": "[an owl, a glove]", "threshold": "0.1", "output": "/mnt/test/owl_out.png", "model": "google/owlvit-base-patch32", "image_encoder_engine": "/opt/nanoowl/data/owl_image_encoder_patch32.engine"}
+    
+    IMAGE_QUALITY = 50
+    
+    predictor = TreePredictor(
+        owl_predictor=OwlPredictor(
+            image_encoder_engine=args["image_encoder_engine"]
+        )
+    )
+    
+    tree = Tree.from_prompt(args["prompt"])
+    clip_encodings = predictor.encode_clip_text(tree)
+    owl_encodings = predictor.encode_owl_text(tree)
+    prompt_data = {
+        "tree": tree,
+        "clip_encodings": clip_encodings,
+        "owl_encodings": owl_encodings
+    }
+
+    image_pil = PIL.Image.open(args["image"])
+    image = np.array(image_pil)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    
+    if prompt_data is not None:
+        prompt_data_local = prompt_data
+        detections = predictor.predict(
+            image_pil,
+            tree=prompt_data_local['tree'],
+            clip_text_encodings=prompt_data_local['clip_encodings'],
+            owl_text_encodings=prompt_data_local['owl_encodings']
+        )
+        tree = prompt_data_local['tree']
+        image = draw_tree_output(image, detections, prompt_data_local['tree'])
+
+    # image_jpeg = bytes(
+    #     cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, IMAGE_QUALITY])[1]
+    # )
+    
+    cv2.imwrite(args["output"], image)
+    
+    print('Hi from odd_arm_cv + nanoowl!')
+
+if __name__ == '__main__':
+    main()
