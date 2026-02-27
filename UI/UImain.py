@@ -6,7 +6,7 @@ customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "gre
 
 app = customtkinter.CTk()
 app.geometry("400x860")
-app.eval('tk::PlaceWindow . center
+app.eval('tk::PlaceWindow . center')
 app.title("ARM user control")
 #----------------------------
 #	main frame
@@ -168,4 +168,5 @@ button_exit.pack(pady=10)
 
 
 app.mainloop()
+
 
