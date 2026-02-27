@@ -42,7 +42,7 @@ inframe.pack(fill = "x")
 #----------------------------
 #	mode 1 
 entry_1 = customtkinter.CTkEntry(inframe, placeholder_text="Object")
-entry_1.grid(row=0, column=0, pady=10)
+entry_1.grid(row=1, column=0, padx = 60,pady=5)
 entry_1.grid_remove()	#	hide initially
 
 #----------------------------
@@ -168,5 +168,6 @@ button_exit.pack(pady=10)
 
 
 app.mainloop()
+
 
 
