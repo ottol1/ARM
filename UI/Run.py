@@ -1,3 +1,4 @@
+import cv2
 #	Run button
 def run_mode(selected, object, joints, coordinates):
 	
@@ -9,7 +10,14 @@ def run_mode(selected, object, joints, coordinates):
 		print(f"Running object detection on {object}")
 		Run.run_mode_1(object)
 		#want it to open new frame of camera view 
- 
+		cv2.imshow("real time feed", frame)
+
+	
+
+ 		#stop streaming
+    	pip.stop()
+    	cv2.destroyAllWindows()
+	
 	elif selected == 2:
 		val = [j_entry.get() for j_entry in joint_entries]
 		if "" in val:
@@ -46,5 +54,6 @@ def run_mode(selected, object, joints, coordinates):
 	else:
 		print("No mode selected")
 		return
+
 
 
