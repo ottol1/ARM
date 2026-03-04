@@ -14,8 +14,6 @@ class camerawindow(customtkinter.CTkToplevel):
         self.label = customtkinter.CTkLabel(self, text="")
         self.label.pack(fill="both", expand=True)
 
-        self.protocol("WM_DELETE_WINDOW", self.close)
-
         self.update_frame()
 
     def update_frame(self):
