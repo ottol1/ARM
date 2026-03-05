@@ -1,20 +1,23 @@
 <?xml version="1.0"?>
-<?xml-model
-   href="http://download.ros.org/schema/package_format3.xsd"
-   schematypens="http://www.w3.org/2001/XMLSchema"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
  <name>my_package</name>
  <version>0.0.0</version>
  <description>Display GUI</description>
  <maintainer email="ottol1@todo.todo">user</maintainer>
- <license>TODO: License declaration</license>
+ <license>Apache-2.0</license>
 
  <test_depend>ament_copyright</test_depend>
  <test_depend>ament_flake8</test_depend>
  <test_depend>ament_pep257</test_depend>
  <test_depend>python3-pytest</test_depend>
 
+  <test_depend>ament_lint_auto</test_depend>
+  
+  <exec_depend>urdf_launch</exec_depend>
+
  <export>
    <build_type>ament_python</build_type>
+   <gazebo_ros gazebo_model_path="${prefix}/.."/>
  </export>
 </package>
