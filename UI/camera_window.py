@@ -1,10 +1,11 @@
 import customtkinter
 import cv2
-from PIL import Image, ImageTk
 
+#----------------------------
+#	create new window
 class camerawindow(customtkinter.CTkToplevel):
-    def init(self):
-        super().init()
+    def __init__(self):
+        super().__init__()
 
         self.title("Camera Preview")
         self.geometry("640x480")
@@ -16,18 +17,22 @@ class camerawindow(customtkinter.CTkToplevel):
 
         self.update_frame()
 
-    def update_frame(self):
-        ret, frame = self.cap.read()
+#----------------------------
+#	
+    def streaming(self):
+        ret, img = self.cap.read()
         if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.cvtColor(cap.read()[1], cv2.COLOR_BGR2RGB)
             img = Image.fromarray(frame)
-            imgtk = ImageTk.PhotoImage(img)
+            imgtk = ImageTk.PhotoImage(image=img)
 
             self.label.imgtk = imgtk
             self.label.configure(image=imgtk)
 
-        self.after(10, self.update_frame)
+        self.after(2, self.update_frame)
 
+#----------------------------
+#	close new window 
     def close(self):
         self.cap.release()
         self.destroy()
