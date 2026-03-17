@@ -1,0 +1,9 @@
+# Default initial positions for arm_robot_description's ros2_control fake system
+
+initial_positions:
+  forearm_joint: 0
+  frame_joint: 0
+  shoulder_joint: 0
+  upperarm_joint: 0
+  worm_joint: 0
+  wrist_joint: 0
