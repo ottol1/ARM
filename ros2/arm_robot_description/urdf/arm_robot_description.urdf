@@ -6,7 +6,8 @@
   name="arm_robot_description">
   <link
     name="base_link">
-    <inertial>
+    <!-- inertial info commented out for base link, because KDL parser doesn't like it -->
+    <!--<inertial>
       <origin
         xyz="0.0427202649113654 -0.0447508147667135 0.0467045833806336"
         rpy="0 0 0" />
@@ -19,7 +20,7 @@
         iyy="9.44064836417226E-05"
         iyz="-1.46743918085426E-07"
         izz="0.000129911636750205" />
-    </inertial>
+    </inertial>-->
     <visual>
       <origin
         xyz="0 0 0"
@@ -408,7 +409,7 @@
         iyz="-2.0617E-09"
         izz="1.1586E-05" />
     </inertial>
-    <visual>
+    <!--<visual>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
@@ -430,7 +431,7 @@
         <mesh
           filename="package://arm_robot_description/meshes/camera_link.STL" />
       </geometry>
-    </collision>
+    </collision>-->
   </link>
   <joint
     name="camera_joint"
