@@ -1,18 +1,14 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="arm_robot_description">
     <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
-    <xacro:arg name="use_nominal_extrinsics" default="false"/>
-    
+
     <!-- Import arm_robot_description urdf file -->
     <xacro:include filename="$(find arm_robot_description)/urdf/arm_robot_description.urdf" />
-    <!-- Import depth camera -->
-    <xacro:include filename="$(find arm_robot_description)/urdf/_d405.urdf.xacro" />
-    
-    <xacro:sensor_d405 parent="camera_link" use_nominal_extrinsics="$(arg use_nominal_extrinsics)">
-    <origin xyz="0 0 0.00129" rpy="0 -1.5707963268 -1.5707963268"/>
-    </xacro:sensor_d405>
-  
+
+    <!-- Import control_xacro -->
     <xacro:include filename="arm_robot_description.ros2_control.xacro" />
+
+
     <xacro:arm_robot_description_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/>
-    
+
 </robot>

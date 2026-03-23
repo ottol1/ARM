@@ -1,0 +1,9 @@
+Leilani's package notes
+
+By default, MoveIt setup assistant generates:
+demo, move_group, moveit_rviz, rsp, setup_assistant, spawn_controllersm static_virtual_joint_tfs, and warehouse_db, and all of those have a suffix of .launch.py
+
+So far, I have added:
+display, interact, interact_moveit_rviz, command_control_moveit_rviz.
+
+interact, interact_moveit_rviz, and command_control_moveit_rviz do not work yet for the arm. I'm adapting them from the roarm code, and they depend on moveit_servo and roarm_moveit_cmd, which I haven't adapted yet.

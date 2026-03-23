@@ -42,8 +42,9 @@
   <exec_depend>rviz_common</exec_depend>
   <exec_depend>rviz_default_plugins</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
-<!-- Commented out because it is commented out in existing MoveIt packages -->
-  <!-- <exec_depend>warehouse_ros_mongo</exec_depend> -->
+  <!-- Note from existing moveit package: This package is referenced in the warehouse launch files, but does not build out of the box at the moment.
+       Commented the dependency until this works. -->
+  <!--<exec_depend>warehouse_ros_mongo</exec_depend>-->
   <exec_depend>xacro</exec_depend>
 
 
