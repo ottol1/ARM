@@ -21,7 +21,7 @@ class opencmCommandNode(Node):
 		
 		# start the serial connection
 		try:
-			self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) # try to make more adaptive to different serial ports
+			self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) # this needs to be changed based on the device :(
 			#self.get_logger().info("Connected to serial /dev/ttyACM0")
 		except Exception as e:
 			self.get_logger().error(f"Serial Error: {e}")
@@ -51,23 +51,23 @@ class opencmCommandNode(Node):
 		# if it is true for every value, return true
 		for i in range(6):
 			if i < 3:
-				if (a[i] > (b[i] - self.joint_tolerance[0])) & (a[i] < (b[i] + self.joint_tolerance[0])):
+				if (a[i] > (b[i] - self.joint_tolerance[0])) and (a[i] < (b[i] + self.joint_tolerance[0])):
 					return False
 			elif i < 5:
-				if (a[i] > (b[i] - self.joint_tolerance[1])) & (a[i] < (b[i] + self.joint_tolerance[1])):
+				if (a[i] > (b[i] - self.joint_tolerance[1])) and (a[i] < (b[i] + self.joint_tolerance[1])):
 					return False
 			elif i == 5:
-				if (a[i] > (b[i] - self.joint_tolerance[2])) & (a[i] < (b[i] + self.joint_tolerance[2])):
+				if (a[i] > (b[i] - self.joint_tolerance[2])) and (a[i] < (b[i] + self.joint_tolerance[2])):
 					return False
 		return True
 
 	def listener_callback(self, msg):
 	
 		joint_states = JointState()
-		joint_positions = [0]*6
+		joint_positions_rad = [0.0]*6
 		# joint_velocities = [0]*6
-		posCommand_rad = [0]*6
-		velCommand_rad = [0]*6
+		posCommand_rad = [0.0]*6
+		velCommand_rad = [0.0]*6
 
 		# check if the current joint positions match the previous joint command
 		if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int):
@@ -82,18 +82,22 @@ class opencmCommandNode(Node):
 				posCommand_rad = point.positions
 				velCommand_rad = point.velocities # leave velocity in rpm
 			
-				for i, p, v in [len(posCommand_rad), posCommand_rad, velCommand_rad]:
+				for i in range(6):
 					if i < 3:
 						# convert to integers based on dynamixel protocol 2
-						self.posCommand_int[i] = int(p*4095/math.pi) # 0.088 deg per pulse, in rad | 0 - 4095 pulses
-						self.velCommand_int[i] = int(v/0.229) # 0.229 rev/min per pulse | 0 - 2047 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
-					elif i < 7:
+						self.posCommand_int[i] = int(posCommand_rad[i]*4095/math.pi) # 0.088 deg per pulse, in rad | 0 - 4095 pulses
+						self.velCommand_int[i] = int(velCommand_rad[i]/0.229) # 0.229 rev/min per pulse | 0 - 2047 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
+					elif i < 5:
 						# convert to integers based on dynamixel protocol 1
-						self.posCommand_int[i] = int(p*1023/(math.pi-0.5235987756)) # 0.293 deg per pulse, in rad (only to 300 deg) | 0 - 1023 pulses
-						self.velCommand_int[i] = int(v/0.11) # 0.110 rev/min per pulse | 0 - 1023 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
+						self.posCommand_int[i] = int(posCommand_rad[i]*1023/(math.pi-0.5235987756)) # 0.293 deg per pulse, in rad (only to 300 deg) | 0 - 1023 pulses
+						self.velCommand_int[i] = int(velCommand_rad[i]/0.11) # 0.110 rev/min per pulse | 0 - 1023 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
+
+				# NEED TO FIGURE OUT WHERE TO PULL THE DESIRED FORCE SENSOR VALUE FROM
+				self.posCommand_int[5] = 0
+				self.velCommand_int[5] = 273
 			
 		
-		# format string for broadcast: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6
+		# format string for broadcast: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
 		command = f"${','.join(map(str, self.posCommand_int))},{','.join(map(str, self.velCommand_int))}\n"
 		
 		# try to send command
@@ -108,19 +112,28 @@ class opencmCommandNode(Node):
 		
 		
 		try:
-			# IMPLEMENT self.joint_positions_int
 			#self.get_logger().info("Waiting to recieve joint data")
-			jointData = self.ser.readline().decode('utf-8').rstrip().split(',') # convert utf-8 status message into a vector
+			joint_data = self.ser.readline().decode('utf-8').rstrip().split(',') # convert utf-8 status message into a vector
 			#self.get_logger().info(f"Recieved Data: {jointData}")
+		
 		except Exception as e:
 			self.get_logger().error("Failed to recieve joint data: {e}")
+		
 		joint_states.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
+		
 		for i in range(6):
-			joint_positions[i] = float(jointData[i])
+			self.joint_positions_int[i] = int(float(joint_data[i]))
+			if i < 3:
+				joint_positions_rad[i] = float(joint_data[i])*math.pi/4095.0
 			# joint_velocities[i] = float(jointData[i+6]) # new system will only recieve positions
-		joint_states.position = joint_positions
+			elif i < 5:
+				joint_positions_rad[i] = float(joint_data[i])*(math.pi-0.5235987756)/1023.0
+			elif i == 5:
+				joint_positions_rad[i] = float(joint_data[i])/1023.0
+		joint_states.position = joint_positions_rad
 		# joint_states.velocity = joint_velocities
 		self.publisher.publish(joint_states)
+		# print(self.joint_positions_int)
 
 	def destroy_node(self):
 		self.ser.close()
