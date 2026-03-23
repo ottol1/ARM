@@ -30,7 +30,8 @@ class opencmCommandNode(Node):
 		#subscribe to joint_trajectory topic
 		self.subscription = self.create_subscription(
 			JointTrajectory,
-			'/joint_trajectory', # possible alternatives: /arm_controller/controller_state
+			#'/joint_trajectory', # possible alternatives: /arm_controller/controller_state
+			'/arm_controller/controller_state/',
 			# will also need /gripper_controller/
 			self.listener_callback,
 			10)
@@ -81,6 +82,19 @@ class opencmCommandNode(Node):
 				# format commands to send over serial
 				posCommand_rad = point.positions
 				velCommand_rad = point.velocities # leave velocity in rpm
+
+				# quick math for the wrist joint
+				joint4_pos = posCommand_rad[3] - posCommand_rad[4]
+				joint5_pos = (360 - posCommand_rad[3]) + posCommand_rad[4]
+
+				joint4_vel = velCommand_rad[3] - posCommand_rad[4]
+				joint5_vel = -posCommand_rad[3] + velCommand_rad[4]
+
+				posCommand_rad[3] = joint4_pos
+				posCommand_rad[4] = joint5_pos
+
+				velCommand_rad[3] = joint4_vel
+				velCommand_rad[4] = joint5_vel
 			
 				for i in range(6):
 					if i < 3:
