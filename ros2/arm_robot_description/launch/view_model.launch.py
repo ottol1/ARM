@@ -26,15 +26,15 @@ from launch_utils import to_urdf
 def generate_launch_description():
     available_urdf_files = [f for f in os.listdir(os.path.join(get_package_share_directory('arm_robot_description'), 'urdf')) if f.startswith('test_')]
     params = dict([aa for aa in [aa.split(':=') for aa in sys.argv] if len(aa) == 2])
-    if ('model' not in params or params['model'] not in available_urdf_files):
-        print('USAGE:')
-        print('ros2 launch arm_robot_description view_model.launch.py model:=<model>')
-        print('Available argumants for <model> are as follows:')
-        print('\n'.join(available_urdf_files))
-        return launch.LaunchDescription()
+#    if ('model' not in params or params['model'] not in available_urdf_files):
+#        print('USAGE:')
+#        print('ros2 launch arm_robot_description view_model.launch.py model:=<model>')
+#        print('Available argumants for <model> are as follows:')
+#        print('\n'.join(available_urdf_files))
+#        return launch.LaunchDescription()
 
     rviz_config_dir = os.path.join(get_package_share_directory('arm_robot_description'), 'config', 'urdf.rviz')
-    xacro_path = os.path.join(get_package_share_directory('arm_robot_description'), 'urdf', params['model'])
+    xacro_path = os.path.join(get_package_share_directory('arm_robot_description'), 'urdf', 'test_d405_camera.urdf.xacro')
     urdf = to_urdf(xacro_path, {'use_nominal_extrinsics': 'true', 'add_plug': 'true'})
     rviz_node = Node(
         package='rviz2',
