@@ -1,0 +1,11 @@
+sensors:
+  - sensor_d405
+sensor_d405:
+  filtered_cloud_topic: filtered_cloud
+  max_range: 1.3
+  max_update_rate: 1.0
+  padding_offset: 0.1 # 0.01 doesn't make it smaller
+  padding_scale: 1.0
+  point_cloud_topic: /camera/camera/depth/color/points
+  point_subsample: 1 # 10 doesn't make it smaller
+  sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
