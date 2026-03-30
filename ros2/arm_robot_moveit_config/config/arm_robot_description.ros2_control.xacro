@@ -9,7 +9,7 @@
                 <plugin>dynamixel_hardware/DynamixelHardware</plugin>
         	<param name="usb_port">/dev/ttyACM0</param>
         	<param name="baud_rate">115200</param> <!-- or 1000000? -->
-        	
+        	<param name="use_dummy">true</param>
             </hardware>
             <joint name="shoulder_joint">
             	<param name="id">1</param>
