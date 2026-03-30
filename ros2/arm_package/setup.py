@@ -35,6 +35,7 @@ entry_points={
         	'opencm_command = arm_package.opencm_command:main',
         	'teleop_joint_keyboard = arm_package.teleop_joint_keyboard:main',
         	'opencm_command2 = arm_package.opencm_command2:main',
+            'opencm_command3 = arm_package.opencm_command3:main',
         	'dynamixel_control = arm_package.dynamixel_control:main',
         ],
     },
