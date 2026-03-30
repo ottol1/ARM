@@ -1,0 +1,7 @@
+pyproject.toml
+src/odd_python/__init__.py
+src/odd_python/example.py
+src/odd_python.egg-info/PKG-INFO
+src/odd_python.egg-info/SOURCES.txt
+src/odd_python.egg-info/dependency_links.txt
+src/odd_python.egg-info/top_level.txt

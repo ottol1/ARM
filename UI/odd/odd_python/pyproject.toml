@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "odd_python"
+version = "1.0.0"
+authors = [{name="Austin Palahnuk", email="austinpaulpal@gmail.com"}]
+description = "A package for controlling ODD Robot"
+requires-python = ">=3.10"
