@@ -139,8 +139,8 @@ class opencmCommandNode(Node):
 			joint4_pos = posCommand_rad[3] - posCommand_rad[4]
 			joint5_pos = (2*math.pi - posCommand_rad[3]) + posCommand_rad[4]
 
-			joint4_vel = velCommand_rad[3] - posCommand_rad[4]
-			joint5_vel = -posCommand_rad[3] + velCommand_rad[4]
+			joint4_vel = velCommand_rad[3] - velCommand_rad[4]
+			joint5_vel = -velCommand_rad[3] + velCommand_rad[4]
 
 			posCommand_rad[3] = joint4_pos
 			posCommand_rad[4] = joint5_pos
