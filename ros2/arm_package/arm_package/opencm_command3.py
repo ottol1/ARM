@@ -129,19 +129,10 @@ class opencmCommandNode(Node):
 		
 		# get the most recent trajectory point
 		if msg.desired: # if there is a new position and velocity, update it!
-			# get target positions and velocity from the first point in the trajectory, could be adapted to cycle through trajectory points?
-			# print(f"Recieved: {msg.points[-1]}")
-			# trajectory = msg.goal.trajectory.points[-1]
-			# print(f"Recieved: {trajectory}")	
-			# format commands to send over serial
-			# posCommand_rad = list(msg.points[-1].positions)
-			# velCommand_rad = list(msg.points[-1].velocities)
+
 			print(f"Recieved: {msg.desired}")	
 			posCommand_rad = list(msg.desired.positions)
 			velCommand_rad = list(msg.desired.velocities) # leave velocity in rpm
-			# posCommand_rad = list(trajectory.positions)
-			# velCommand_rad = list(trajectory.velocities)
-
 
 
 			# quick math for the wrist joint
@@ -161,18 +152,18 @@ class opencmCommandNode(Node):
 				if i < 3:
 					# convert to integers based on dynamixel protocol 2
 					self.posCommand_int[i] = int((posCommand_rad[i]+math.pi)*4095/(2*math.pi)) # 0.088 deg per pulse, in rad | 0 - 4095 pulses
-					self.velCommand_int[i] = int(abs(velCommand_rad[i])/0.229) + 1 # 0.229 rev/min per pulse | 0 - 2047 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
+					self.velCommand_int[i] = int((abs(velCommand_rad[i])*60/(2*math.pi))/0.229) + 1 # 0.229 rev/min per pulse | 0 - 2047 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
 				elif i < 5:
 					# convert to integers based on dynamixel protocol 1
 					self.posCommand_int[i] = int((posCommand_rad[i]+math.pi)*1023/((2*math.pi)*(300/360))) # 0.293 deg per pulse, in rad (only to 300 deg) | 0 - 1023 pulses
-					self.velCommand_int[i] = int(abs(velCommand_rad[i])/0.11) + 1 # 0.110 rev/min per pulse | 0 - 1023 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
+					self.velCommand_int[i] = int((abs(velCommand_rad[i])*60/(2*math.pi))/0.11) + 1 # 0.110 rev/min per pulse | 0 - 1023 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
 
 			# NEED TO FIGURE OUT WHERE TO PULL THE DESIRED FORCE SENSOR VALUE FROM
 			self.posCommand_int[5] = 0
 			self.velCommand_int[5] = 273
 			
 		
-		# format string for broadcast: $P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
+		# format string for broadcast: P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
 		command = f"{','.join(map(str, self.posCommand_int))},{','.join(map(str, self.velCommand_int))}\n"
 		print(f"Command: {command}")
 
