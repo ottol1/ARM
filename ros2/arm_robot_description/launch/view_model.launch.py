@@ -24,8 +24,8 @@ from launch_utils import to_urdf
 
 
 def generate_launch_description():
-    available_urdf_files = [f for f in os.listdir(os.path.join(get_package_share_directory('arm_robot_description'), 'urdf')) if f.startswith('test_')]
-    params = dict([aa for aa in [aa.split(':=') for aa in sys.argv] if len(aa) == 2])
+#    available_urdf_files = [f for f in os.listdir(os.path.join(get_package_share_directory('arm_robot_description'), 'urdf')) if f.startswith('test_')]
+#    params = dict([aa for aa in [aa.split(':=') for aa in sys.argv] if len(aa) == 2])
 #    if ('model' not in params or params['model'] not in available_urdf_files):
 #        print('USAGE:')
 #        print('ros2 launch arm_robot_description view_model.launch.py model:=<model>')
