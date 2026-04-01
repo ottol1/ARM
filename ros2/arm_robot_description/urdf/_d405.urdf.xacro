@@ -26,7 +26,7 @@ aluminum peripherial evaluation case.
   <xacro:include filename="$(find arm_robot_description)/urdf/_materials.urdf.xacro" />
   <xacro:include filename="$(find arm_robot_description)/urdf/_usb_plug.urdf.xacro" />
 
-  <xacro:macro name="sensor_d405" params="parent *origin name:=camera2 use_nominal_extrinsics:=false">
+  <xacro:macro name="sensor_d405" params="parent *origin name:=depcamera use_nominal_extrinsics:=false">
     <xacro:arg name="add_plug" default="false" />
     <xacro:property name="M_PI" value="3.1415926535897931" />
 

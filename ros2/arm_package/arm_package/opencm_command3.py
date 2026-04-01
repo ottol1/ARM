@@ -76,7 +76,13 @@ class opencmCommandNode(Node):
 		joint_positions_rad = [0.0]*6
 		# joint_velocities = [0.0]*6
 		posCommand_rad = [0.0]*6
+		prev_posCommand_rad = [0.0]*6
 		velCommand_rad = [0.0]*6
+		prev_velCommand_rad = [0.0] * 6
+		motor4_pos = 0
+		motor5_pos = 0
+		motor4_vel = 0
+		motor5_vel = 0
 
 		# check if the current joint positions match the previous joint command
 		# if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int):
@@ -136,17 +142,37 @@ class opencmCommandNode(Node):
 
 
 			# quick math for the wrist joint
-			joint4_pos = posCommand_rad[3] - posCommand_rad[4]
-			joint5_pos = (2*math.pi - posCommand_rad[3]) + posCommand_rad[4]
+			if posCommand_rad[3] > prev_posCommand_rad[3]:  # if wrist angle is increasing
+				motor4_pos += posCommand_rad[3] - prev_posCommand_rad[3]
+				motor5_pos -= posCommand_rad[3] - prev_posCommand_rad[3]
+			if posCommand_rad[3] < prev_posCommand_rad[3]:  # if wrist angle is decreasing
+				motor4_pos -= prev_posCommand_rad[3] - posCommand_rad[3]
+				motor5_pos += prev_posCommand_rad[3] - posCommand_rad[3]
+			if posCommand_rad[4] > prev_posCommand_rad[4]:  # if frame angle is increasing
+				motor4_pos -= posCommand_rad[4] - prev_posCommand_rad[4]
+				motor5_pos -= posCommand_rad[4] - prev_posCommand_rad[4]
+			if posCommand_rad[4] < prev_posCommand_rad[4]:  # if frame angle is decreasing
+				motor4_pos += prev_posCommand_rad[4] - posCommand_rad[4]
+				motor5_pos += prev_posCommand_rad[4] - posCommand_rad[4]
 
-			joint4_vel = velCommand_rad[3] - velCommand_rad[4]
-			joint5_vel = -velCommand_rad[3] + velCommand_rad[4]
+			if velCommand_rad[3] > prev_velCommand_rad[3]:  # if wrist angle is increasing
+				motor4_vel += velCommand_rad[3] - prev_velCommand_rad[3]
+				motor5_vel -= velCommand_rad[3] - prev_velCommand_rad[3]
+			if velCommand_rad[3] < prev_velCommand_rad[3]:  # if wrist angle is decreasing
+				motor4_vel -= prev_velCommand_rad[3] - velCommand_rad[3]
+				motor5_vel += prev_velCommand_rad[3] - velCommand_rad[3]
+			if velCommand_rad[4] > prev_velCommand_rad[4]:  # if frame angle is increasing
+				motor4_vel -= velCommand_rad[4] - prev_velCommand_rad[4]
+				motor5_vel -= velCommand_rad[4] - prev_velCommand_rad[4]
+			if velCommand_rad[4] < prev_velCommand_rad[4]:  # if frame angle is decreasing
+				motor4_vel += prev_velCommand_rad[4] - velCommand_rad[4]
+				motor5_vel += prev_velCommand_rad[4] - velCommand_rad[4]
 
-			posCommand_rad[3] = joint4_pos
-			posCommand_rad[4] = joint5_pos
+			posCommand_rad[3] = motor4_pos
+			posCommand_rad[4] = motor5_pos
 
-			velCommand_rad[3] = joint4_vel
-			velCommand_rad[4] = joint5_vel
+			velCommand_rad[3] = motor4_vel
+			velCommand_rad[4] = motor5_vel
 		
 			for i in range(6):
 				if i < 3:
@@ -202,6 +228,8 @@ class opencmCommandNode(Node):
 		# joint_states.velocity = joint_velocities
 		self.publisher.publish(joint_states)
 		# print(self.joint_positions_int)
+
+		prev_posCommand_rad = posCommand_rad
 
 	def destroy_node(self):
 		self.ser.close()

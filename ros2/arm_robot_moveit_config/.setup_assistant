@@ -5,8 +5,8 @@ moveit_setup_assistant_config:
   srdf:
     relative_path: config/arm_robot_description.srdf
   package_settings:
-    author_name: Leilani
-    author_email: leilani@placeholder.com
+    author_name: ELAlvarado
+    author_email: 132153888+ELAlvarado@users.noreply.github.com
     generated_timestamp: 1773711505
   control_xacro:
     command:

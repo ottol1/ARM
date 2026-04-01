@@ -9,7 +9,7 @@
     <xacro:include filename="$(find arm_robot_description)/urdf/_d405.urdf.xacro" />
 
     <xacro:sensor_d405 parent="camera_link" use_nominal_extrinsics="$(arg use_nominal_extrinsics)">
-    <origin xyz="0 0 0.00129" rpy="0 -1.5707963268 -1.5707963268"/>
+    <origin xyz="0.00129 0 0" rpy="0 0 0"/> <!-- this only applies to model of camera, not the pointcloud -->
     </xacro:sensor_d405>
     <!-- Import control_xacro -->
     <xacro:include filename="arm_robot_description.ros2_control.xacro" />

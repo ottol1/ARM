@@ -438,7 +438,7 @@
     type="fixed">
     <origin
       xyz="0.028329 0.016933 0.06075"
-      rpy="0 0 -1.0472" />
+      rpy="-1.5707963268 -1.5707963268 -1.0472" /> <!-- This reorients the camera AND pointcloud -->
     <parent
       link="frame_link" />
     <child
