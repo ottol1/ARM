@@ -1,4 +1,4 @@
-import customtkinter
+import customtkinter as ctk
 
 #from Run import MoveARM	#run button file
 #from camera_window import CameraWindow
