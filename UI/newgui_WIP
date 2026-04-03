@@ -111,17 +111,97 @@ def build_gui(node: ArmGUI):
     status_label = customtkinter.CTkLabel(right_frame, text='', text_color='gray')
     status_label.pack(pady=(8, 2))
 
-
-
-
-
-
-
-
-
+#	file if needed
+	def save_file():
+		input_text = entry.get()
+		with open ("output.txt", "w") as file 
+			file.write(input_text)
+		print("values saved to file")
 #--------------------------
+#	action buttons
     button_row = customtkinter.CTkFrame(right_frame, fg_color='transparent')
     button_row.pack(pady=(4, 12))
+
+#	validation button press
+	def validate(values):
+		try:
+			return all(v != "" and float(v) for v in values)
+		except ValueError:
+			return False
+
+
+#	add point 
+	joint_count = 0
+	coordinate_count = 0
+
+	def add_values():
+		# add widgets on tabs
+		global joint_count, coordinate_count
+		selected = mode.get()
+
+		if selected == 2:
+			vals = [j_entry.get() for j_entry in joint_entries]
+			if not validate(vals):
+				return
+			joint_count += 1
+			customtkinter.CTkLabel(joint_frame, text=f"{joint_count}: J1={vals[0]}, J2={vals[1]}, J3={vals[2]}, J4={vals[3]}, J5={vals[4]}").pack(anchor="w", pady=2)
+ 
+		elif selected == 3:
+			vals = [c_entry.get() for c_entry in coordinate_entries]
+			if not validate(vals):
+				return
+			coordinate_count += 1
+			customtkinter.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X={vals[0]}, Y={vals[1]}, Z={vals[2]}").pack(anchor="w",pady=2)
+
+#	run
+	def run():
+		selected = mode.get()
+ 
+		if selected == 1:
+        	object = entry_1.get()
+			if not obj:
+                status_label.configure(text='No object entered.', text_color='red')
+                return
+            save_file(sel, {'object': obj})
+            node.publish_object(obj)
+            status_label.configure(text=f'Mode 1 — targeting: {obj}', text_color='green')
+
+ 
+		elif selected == 2:
+			val = [j_entry.get() for j_entry in joint_entries]
+			if "" in val:
+							print("No values listed")
+							return
+			try:
+				joints = [float(v) for v in val]
+			except ValueError:
+				print("Invalid input")
+				return
+			print("running set joint positions ")
+			Run.run_mod_2()
+		elif selected == 3:
+			val = [c_entry.get() for c_entry in coordinate_entries]
+			if "" in val:
+				print("No values listed")
+				return
+			try:
+				coordinates = [float(v) for v in val]
+			except ValueError:
+				print("Invalid input")
+				return
+			print("running coordinate values")
+			Run.run_mod_3()
+
+		else:
+			print("invalid or no selection")
+
+
+# gripper
+	def open_gripper():
+		print("Opening gripper")
+
+	def close_gripper():
+		print("Closinging gripper")
 
 
 #--------------------------
