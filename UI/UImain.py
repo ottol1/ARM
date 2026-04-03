@@ -1,5 +1,6 @@
 import customtkinter
-from Run import MoveARM	#run button file
+
+#from Run import MoveARM	#run button file
 #from camera_window import CameraWindow
 
 customtkinter.set_appearance_mode("dark")  # Modes: "System" (standard), "Dark", "Light"
