@@ -1,0 +1,141 @@
+import customtkinter as ctk
+
+
+class ArmGUI(ctk.CTk):
+    def __init__(self):
+
+
+#--------------------------
+#  main frame
+
+def build_gui(node: ArmGUI):
+  ctk.set_appearance_mode('dark')
+  ctk.set_default_color_theme('blue')
+    
+  camera_window = None
+
+  app = customtkinter.CTk()
+  app.geometry('880x720')
+  app.eval('tk::PlaceWindow . center')
+  app.title('ARM user control')
+ 
+  app.rowconfigure(0, weight=1)
+  app.rowconfigure(1, weight=0)
+  app.columnconfigure(0, weight=1)
+
+#--------------------------
+#  left frame
+#  will have mode def, selection, few action buttons 
+
+  left_frame = ctk.CTkFrame(app)
+  left_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=10)
+  left_frame.columnconfigure(0, weight=1)
+
+  ctk.CTkLabel(left_frame, text='ARM Mode Selection', font=('Arial', 14, 'bold')).pack(pady=(14, 6))
+
+
+
+#--------------------------
+#  right frame
+#  will have coord/joint entries, 5 manual sliders, action buttons below 
+
+  right_frame = ctk.CTkFrame(app)
+  right_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=10)
+  right_frame.columnconfigure(0, weight=1)
+
+
+
+#--------------------------
+#  modes
+
+#	mode 1 
+  entry_1 = customtkinter.CTkEntry(inframe, placeholder_text="Object")
+  entry_1.grid(row=1, column=0, padx = 60,pady=5)
+  entry_1.grid_remove()	#	hide initially
+
+#	mode 2
+  joint_entries = []
+  for i in range (5):
+  	j_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"Joint {i + 1} (deg)")
+  	j_entry.grid(row=i, column=0, padx = 60,pady=5)
+  	j_entry.grid_remove()#	hide initially
+	  joint_entries.append(j_entry)
+
+#	mode 3
+  coordinate_entries = []
+  for i, lbl in enumerate(("X", "Y","Z")):
+  	c_entry = customtkinter.CTkEntry(inframe, placeholder_text= f"{lbl}")
+	  c_entry.grid(row=i, column=0, padx = 60,pady=5)
+	  c_entry.grid_remove()#	hide initially
+	  coordinate_entries.append(c_entry)
+
+  def show_inputs():
+	  global camera_window
+	  selected = mode.get()
+  	entry_1.grid_remove()
+  	for j_entry in joint_entries:
+  		j_entry.grid_remove()
+  	for c_entry in coordinate_entries:
+  		c_entry.grid_remove()
+  
+  	if selected == 1:
+	  	entry_1.grid()	 
+  	elif selected == 2:
+  		for j_entry in joint_entries:
+		  	j_entry.grid()
+	  elif selected == 3:
+	  	for c_entry in coordinate_entries:
+		  	c_entry.grid()
+
+#--------------------------
+#  sliders
+
+    slider_section = customtkinter.CTkFrame(right_frame)
+    slider_section.pack(fill='x', padx=10, pady=6)
+
+    customtkinter.CTkLabel(
+        slider_section, text='Manual Joint Control', font=('Arial', 12, 'bold')
+    ).pack(pady=(8, 4))
+
+    joint_sliders       = []
+    slider_value_labels = []
+
+    JOINT_LIMITS = [(-180, 180)] * 5   # TODO: set real per-joint limits
+
+
+
+
+
+#--------------------------
+# status sentence
+    status_label = customtkinter.CTkLabel(right_frame, text='', text_color='gray')
+    status_label.pack(pady=(8, 2))
+
+
+
+
+
+
+
+
+
+#--------------------------
+    button_row = customtkinter.CTkFrame(right_frame, fg_color='transparent')
+    button_row.pack(pady=(4, 12))
+
+
+#--------------------------
+#  Camera
+class CameraWindow(customtkinter.CTkToplevel):
+
+
+
+    def get_rgb_frame(self):
+
+    def _get_depth_frame(self):
+
+
+    def close(self):
+        self._running = False
+        self.destroy()
+
