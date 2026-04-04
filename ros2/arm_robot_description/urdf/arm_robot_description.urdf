@@ -6,21 +6,6 @@
   name="arm_robot_description">
   <link
     name="base_link">
-    <!-- inertial info commented out for base link, because KDL parser doesn't like it -->
-    <!--<inertial>
-      <origin
-        xyz="0.0427202649113654 -0.0447508147667135 0.0467045833806336"
-        rpy="0 0 0" />
-      <mass
-        value="0.163939534292526" />
-      <inertia
-        ixx="9.89390642109536E-05"
-        ixy="6.3611040748146E-09"
-        ixz="-2.83456140476016E-08"
-        iyy="9.44064836417226E-05"
-        iyz="-1.46743918085426E-07"
-        izz="0.000129911636750205" />
-    </inertial>-->
     <visual>
       <origin
         xyz="0 0 0"
@@ -90,7 +75,7 @@
     type="revolute">
     <origin
       xyz="0.042 -0.042 0.052082"
-      rpy="1.5708 0 -3.1416" />
+      rpy="1.570796327 0 -3.1415926536" />
     <parent
       link="base_link" />
     <child
@@ -98,8 +83,8 @@
     <axis
       xyz="0 1 0" />
     <limit
-      lower="-3.1415"
-      upper="3.1415"
+      lower="-3.1415926536"
+      upper="3.1415926536"
       effort="0"
       velocity="0" />
   </joint>
@@ -148,7 +133,7 @@
     type="revolute">
     <origin
       xyz="-0.036613 0.084019 0"
-      rpy="3.1416 0 0" />
+      rpy="3.1415926536 0 0" />
     <parent
       link="shoulder_link" />
     <child
@@ -156,8 +141,8 @@
     <axis
       xyz="1 0 0" />
     <limit
-      lower="-1.5708"
-      upper="1.5708"
+      lower="-1.570796327"
+      upper="1.832596"
       effort="0"
       velocity="0" />
   </joint>
@@ -206,7 +191,7 @@
     type="revolute">
     <origin
       xyz="0.035651 -0.14 0"
-      rpy="3.1416 0 3.1416" />
+      rpy="3.1415926536 0 3.1415926536" />
     <parent
       link="upperarm_link" />
     <child
@@ -214,8 +199,8 @@
     <axis
       xyz="1 0 0" />
     <limit
-      lower="-1.5708"
-      upper="1.5708"
+      lower="-1.570796327"
+      upper="1.570796327"
       effort="0"
       velocity="0" />
   </joint>
@@ -264,7 +249,7 @@
     type="revolute">
     <origin
       xyz="-0.035049 -0.145 0"
-      rpy="0 -0.96942 -1.5708" />
+      rpy="0 -0.96942 -1.570796327" />
     <parent
       link="forearm_link" />
     <child
@@ -330,8 +315,8 @@
     <axis
       xyz="0 0 1" />
     <limit
-      lower="-3.1415"
-      upper="3.1415"
+      lower="-3.1415926536"
+      upper="3.1415926536"
       effort="0"
       velocity="0" />
   </joint>
@@ -380,7 +365,7 @@
     type="revolute">
     <origin
       xyz="0.01299 0.0075 0.038"
-      rpy="3.1416 0 -3.0183" />
+      rpy="3.1415926536 0 -3.0183" />
     <parent
       link="frame_link" />
     <child
@@ -389,7 +374,7 @@
       xyz="0 0 1" />
     <limit
       lower="0"
-      upper="3.1415"
+      upper="3.1415926536"
       effort="0"
       velocity="0" />
   </joint>
@@ -491,7 +476,7 @@
     type="revolute">
     <origin
       xyz="0.02616 -0.025311 0.035"
-      rpy="3.1416 0.37217 2.0944" />
+      rpy="3.1415926536 0.37217 2.0944" />
     <parent
       link="frame_link" />
     <child
@@ -615,7 +600,7 @@
     type="revolute">
     <origin
       xyz="-0.00017949 0.040311 0.035"
-      rpy="3.1416 0.37217 -1.0472" />
+      rpy="3.1415926536 0.37217 -1.0472" />
     <parent
       link="frame_link" />
     <child
@@ -739,7 +724,7 @@
     type="revolute">
     <origin
       xyz="0.03116 -0.033971 0.035"
-      rpy="3.1416 0.37217 2.0944" />
+      rpy="3.1415926536 0.37217 2.0944" />
     <parent
       link="frame_link" />
     <child
@@ -801,7 +786,7 @@
     type="revolute">
     <origin
       xyz="-0.0095096 0.046471 0.035"
-      rpy="3.1416 0.37217 -1.0472" />
+      rpy="3.1415926536 0.37217 -1.0472" />
     <parent
       link="frame_link" />
     <child
