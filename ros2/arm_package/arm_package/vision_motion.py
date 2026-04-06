@@ -10,11 +10,13 @@ from rclpy.node import Node
 from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
 from vision_msgs.msg import Detection2DArray
+# from vision_msgs.msg import Detection2D
 from vision_msgs.msg import BoundingBox2D
+# from vision_msgs.msg import Pose2D
 import serial
+import pyrealsense2 as rs
 import math
 import subprocess
-#import pyrealsense2
 
 class visionMotionNode(Node):
     def __init__(self):
@@ -115,7 +117,11 @@ class visionMotionNode(Node):
         # print(f"Bounding box data: {bounding_boxes}") # Not this one. It only returns 0s
 
         if msg.detections:
-            print(f"Bounding box detections:\n{msg.detections}\n")
+            print(f"Bounding box center x:\n{msg.detections[1].bbox.center.position.x}")
+            print(f"Bounding box center y:\n{msg.detections[1].bbox.center.position.y}\n")
+
+        else:
+            print("No message detected\n")
 
         # get the most recent trajectory point
         # if msg.desired:  # if there is a new position and velocity, update it!
