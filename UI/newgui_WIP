@@ -1,292 +1,414 @@
 import customtkinter as ctk
 import threading
+import math
 
 class ArmGUI(ctk.CTk):
-	def __init__(self):
-		self.slider_joints = [0.0] * 5
-		self.slider_lock   = threading.Lock()
-		self.slider_active = False
-		print('[ArmGui] STUB mode — ROS2 not connected')
+    def __init__(self):
+        self.slider_joints = [0.0] * 5
+        self.slider_lock = threading.Lock()
+        self.slider_active = False
+        print('[ArmGui] STUB mode — ROS2 not connected')
 
+    def set_slider_joints(self, degrees: list):
+        with self.slider_lock:
+            self.slider_joints = degrees[:]
+            self.slider_active = True
+        print(f'[Slider] { {f"J{i+1}": d for i, d in enumerate(degrees)} }')
+
+    def publish_mode(self, mode: int):
+        print(f'[Publish] /arm/mode → {mode}')
+
+    def publish_object(self, name: str):
+        self.publish_mode(1)
+        print(f'[Publish] /arm/object_target → "{name}"')
+
+    def publish_joint_target(self, degrees: list):
+        self.publish_mode(2)
+        rads = [round(math.radians(d), 4) for d in degrees]
+        print(f'[Publish] /arm/joint_target → {rads} rad  ({degrees} deg)')
+
+    def publish_pose_target(self, coords: list):
+        self.publish_mode(3)
+        print(f'[Publish] /arm/pose_target → X={coords[0]} Y={coords[1]} Z={coords[2]}')
+
+    def publish_gripper(self, state: str):
+        print(f'[Publish] /arm/gripper → "{state}"')
+
+    def destroy_node(self):
+        pass
+# --------------------------
+class CameraWindow(ctk.CTkToplevel):
+
+    FRAME_W, FRAME_H = 380, 240
  
-	def set_slider_joints(self, degrees: list):
-		with self._slider_lock:
-			self._slider_joints = degrees[:]
-			self._slider_active = True
-		print(f'[Slider] { {f"J{i+1}": d for i, d in enumerate(degrees)} }')
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title('Camera Feed')
+        self.geometry('820x320')
+        self.resizable(False, False)
+        self._running = True
  
-	def publish_mode(self, mode: int):
-		print(f'[Publish] /arm/mode → {mode}')
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
  
-	def publish_object(self, name: str):
-		self.publish_mode(1)
-		print(f'[Publish] /arm/object_target → "{name}"')
+        ctk.CTkLabel(self, text='RGB',   font=('Arial', 12, 'bold')).grid(row=0, column=0, pady=(8, 2))
+        ctk.CTkLabel(self, text='Depth', font=('Arial', 12, 'bold')).grid(row=0, column=1, pady=(8, 2))
  
-	def publish_joint_target(self, degrees: list):
-		self.publish_mode(2)
-		rads = [round(math.radians(d), 4) for d in degrees]
-		print(f'[Publish] /arm/joint_target → {rads} rad  ({degrees} deg)')
+        self.rgb_label   = tk.Label(self, bg='#1a1a1a')
+        self.depth_label = tk.Label(self, bg='#1a1a1a')
+        self.rgb_label.grid(  row=1, column=0, padx=10, pady=(0, 10))
+        self.depth_label.grid(row=1, column=1, padx=10, pady=(0, 10))
  
-	def publish_pose_target(self, coords: list):
-		self.publish_mode(3)
-		print(f'[Publish] /arm/pose_target → X={coords[0]} Y={coords[1]} Z={coords[2]}')
+        self.protocol('WM_DELETE_WINDOW', self.close)
+        self._update()
  
-	def publish_gripper(self, state: str):
-		print(f'[Publish] /arm/gripper → "{state}"')
-
-	def destroy_node(self): pass
-
-#--------------------------
-#  main frame
-
-def build_gui(node: ArmGUI):
-	ctk.set_appearance_mode('dark')
-	ctk.set_default_color_theme('blue')
-    
-	camera_window = None
-
-	app = ctk.CTk()
-	app.geometry('880x720')
-	app.eval('tk::PlaceWindow . center')
-	app.title('ARM user control')
+    def _get_rgb_frame(self):
+        # TODO: replace with live RealSense / ROS2 feed
+        return np.random.randint(30, 180, (self.FRAME_H, self.FRAME_W, 3), dtype=np.uint8)
  
-	app.rowconfigure(0, weight=1)
-	app.rowconfigure(1, weight=0)
-	app.columnconfigure(0, weight=1)
-
-#--------------------------
-#  left frame
-
-	mode = ctk.IntVar(value=1)
-
-	left_frame = ctk.CTkFrame(app)
-	left_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=10)
-	left_frame.columnconfigure(0, weight=1)
-
-	ctk.CTkLabel(left_frame, text='ARM Mode Selection', font=('Arial', 14, 'bold')).pack(pady=(14, 6))
-#	text box defining modes
-	text_1 = ctk.CTkTextbox(left_frame, width=240, height=70)
-	text_1.pack(pady=6, padx=10)
-	text_1.insert("0.0", 
-		"mode 1: Object detection with NanoOWL\n"
-		"mode 2: Setting joint variables\n"
-		"mode 3: Set points in space\n"
-	)
-	text_1.configure(state="disabled")	# text is read only
-
-	radframe = ctk.CTkFrame(left_frame)
-	radframe.pack(pady=10)
-
-	addframe = customtkinter.CTkFrame(left_frame)
-	addframe.pack(fill = "x", padx = 14, pady = (10,6))
-
-#--------------------------
-#  right frame
-
-	right_frame = ctk.CTkFrame(app)
-	right_frame.grid(row=0, column=0, sticky='nsew', padx=(10, 5), pady=10)
-	right_frame.columnconfigure(0, weight=1)
-
-	entries_frame = ctk.CTkFrame(right_frame)
-	entries_frame.pack(fill = "x", padx = 10, pady = (10,6))
-
-
-#--------------------------
-#  modes
-
-	inframe = ctk.CTkFrame(right_frame)
-	inframe.pack(pady=10)
-
-#	mode 1 
-	entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object")
-	entry_1.grid(row=0, column=0, padx = 20,pady=5)
-	entry_1.grid_remove()	#	hide initially
-
-#	mode 2
-	joint_entries = []
-	for i in range (5):
-  		j_entry = ctk.CTkEntry(inframe, placeholder_text= f"Joint {i + 1} (deg)")
-  		j_entry.grid(row=i, column=0, padx = 20,pady=4)
-  		j_entry.grid_remove()#	hide initially
-	  	joint_entries.append(j_entry)
-
-#	mode 3
-	coordinate_entries = []
-	for i, lbl in enumerate(("X", "Y","Z")):
-		c_entry = ctk.CTkEntry(inframe, placeholder_text= f"{lbl}")
-		c_entry.grid(row=i, column=0, padx = 20,pady=4)
-		c_entry.grid_remove()#	hide initially
-		coordinate_entries.append(c_entry)
-
-
-	def show_inputs():
-		global camera_window
-		selected = mode.get()
-		entry_1.grid_remove()
-		for j_entry in joint_entries:
-			j_entry.grid_remove()
-		for c_entry in coordinate_entries:
-			c_entry.grid_remove()
-  
-		if selected == 1:
-			entry_1.grid()	 
-		elif selected == 2:
-			for j_entry in joint_entries:
-				j_entry.grid()
-		elif selected == 3:
-			for c_entry in coordinate_entries:
-				c_entry.grid()
-
-	radiobutton_1 = ctk.CTkRadioButton(radframe, variable=mode, text = "mode 1", value=1, command = show_inputs)
-	radiobutton_1.pack(pady = 8)
-	radiobutton_2 = ctk.CTkRadioButton(radframe, variable=mode, text = "mode 2", value=2,  command = show_inputs)
-	radiobutton_2.pack(pady = 8)
-	radiobutton_3 = ctk.CTkRadioButton(radframe,variable=mode, text = "mode 3", value=3,  command = show_inputs)
-	radiobutton_3.pack(pady = 8)
-	radiobutton_3 = ctk.CTkRadioButton(radframe,variable=mode, text = "manual control", value=4,  command = show_inputs)
-	radiobutton_3.pack(pady = 8)
-
-#--------------------------
-#  sliders
-
-	slider_section = ctk.CTkFrame(right_frame)
-	slider_section.pack(fill='x', padx=10, pady=6)
-
-	ctk.CTkLabel(slider_section, text='Manual Joint Control', font=('Arial', 12, 'bold')).pack(pady=(8, 4))
-
-	joint_sliders       = []
-	slider_value_labels = []
-
-	JOINT_LIMITS = [(-180, 180)] * 5   # TODO: set real per-joint limits
-
-	for i, (low, high) in enumerate(JOINT_LIMITS):
-		row_frame = ctk.CTkFrame(slider_section, fg_color='transparent')
-		row_frame.pack(fill='x', padx=14, pady=3)
-		#.grid_remove()	#	hide initially
-
-
-	def reset_sliders():
-		for i, s in enumerate(joint_sliders):
-			s.set(0)
-			slider_value_labels[i].configure(text='0°')
-		node.set_slider_joints([0.0] * 5)
-		status_label.configure(text='Sliders reset to 0°', text_color='gray')
-
-#--------------------------
-# status sentence
-	status_label = ctk.CTkLabel(right_frame, text='', text_color='gray')
-	status_label.pack(pady=(8, 2))
-
-#	file if needed
-	def save_file():
-		input_text = entry.get()
-		with open ("output.txt", "w") as file:
-			file.write(input_text)
-		print("values saved to file")
-#--------------------------
-#	action buttons
-	button_row = ctk.CTkFrame(right_frame, fg_color='transparent')
-	button_row.pack(pady=(4, 12))
-
-#	validation button press
-	def validate(values):
-		try:
-			return all(v != "" and float(v) for v in values)
-		except ValueError:
-			return False
-
-# gripper
-	def open_gripper():
-		print("Opening gripper")
-
-	def close_gripper():
-		print("Closinging gripper")
-
-
-
-
-#	add point 
-	joint_count = 0
-	coordinate_count = 0
-
-	def add_values():
-		# add widgets on tabs
-		global joint_count, coordinate_count
-		selected = mode.get()
-
-		if selected == 2:
-			vals = [j_entry.get() for j_entry in joint_entries]
-			if not validate(vals):
-				return
-			joint_count += 1
-			customtkinter.CTkLabel(joint_frame, text=f"{joint_count}: J1={vals[0]}, J2={vals[1]}, J3={vals[2]}, J4={vals[3]}, J5={vals[4]}").pack(anchor="w", pady=2)
+    def _get_depth_frame(self):
+        # TODO: replace with colourised depth array
+        grad  = np.linspace(0, 255, self.FRAME_W, dtype=np.uint8)
+        depth = np.tile(grad, (self.FRAME_H, 1))
+        return np.stack([depth, np.zeros_like(depth), (255 - depth).astype(np.uint8)], axis=2)
  
-		elif selected == 3:
-			vals = [c_entry.get() for c_entry in coordinate_entries]
-			if not validate(vals):
-				return
-			coordinate_count += 1
-			ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X={vals[0]}, Y={vals[1]}, Z={vals[2]}").pack(anchor="w",pady=2)
-
-#	run
-	def run():
-		selected = mode.get()
-
-		if selected == 1:
-			object = entry_1.get()
-			if not obj:
-				status_label.configure(text='No object entered.', text_color='red')
-				return
-			save_file(sel, {'object': obj})
-			node.publish_object(obj)
-			status_label.configure(text=f'Mode 1 — targeting: {obj}', text_color='green')
-
+    def _update(self):
+        if not self._running:
+            return
+        try:
+            for label, frame in (
+                (self.rgb_label,   self._get_rgb_frame()),
+                (self.depth_label, self._get_depth_frame()),
+            ):
+                img = ImageTk.PhotoImage(Image.fromarray(frame))
+                label.configure(image=img)
+                label._img = img
+        except Exception as e:
+            print(f'[Camera] Frame error: {e}')
+        self.after(33, self._update)
  
-		elif selected == 2:
-			val = [j_entry.get() for j_entry in joint_entries]
-			if "" in val:
-							print("No values listed")
-							return
-			try:
-				joints = [float(v) for v in val]
-			except ValueError:
-				print("Invalid input")
-				return
-			print("running set joint positions ")
-			Run.run_mod_2()
-		elif selected == 3:
-			val = [c_entry.get() for c_entry in coordinate_entries]
-			if "" in val:
-				print("No values listed")
-				return
-			try:
-				coordinates = [float(v) for v in val]
-			except ValueError:
-				print("Invalid input")
-				return
-			print("running coordinate values")
-			Run.run_mod_3()
+    def close(self):
+        self._running = False
+        self.destroy()
+ 
 
-		else:
-			print("invalid or no selection")
-		
-		returnapp
+# --------------------------
+# main frame
 
 def main():
-    node = ArmGuiNode()
- 
- 
-    app = build_gui(node)
-    app.mainloop()
- 
-    node.destroy_node()
+    node = ArmGUI()
 
+    ctk.set_appearance_mode('dark')
+    ctk.set_default_color_theme('blue')
+
+    app = ctk.CTk()
+    app.geometry('1000x680')
+    app.title('ARM user control')
+    app.eval('tk::PlaceWindow . center')
+    app.resizable(True, True)
+
+    app.grid_rowconfigure(0, weight=1)
+    app.grid_rowconfigure(1, weight=0)
+    app.grid_columnconfigure(0, weight=0, minsize=300)
+    app.grid_columnconfigure(1, weight=1)
+
+    camera_window = None
+
+    # --------------------------
+    # left frame
+
+
+    left_frame = ctk.CTkFrame(app,width=280)
+    left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12,6))
+    left_frame.grid_columnconfigure(0, weight=1)
+    left_frame.grid_propagate(False)
+    left_frame.grid_rowconfigure(4, weight=1)
+    
+    ctk.CTkLabel(left_frame, text='ARM Mode Selection',
+                 font=('Arial', 14, 'bold')).pack(pady=(14, 6))
+
+    text_1 = ctk.CTkTextbox(left_frame, width=240, height=70)
+    text_1.pack(pady=6, padx=10)
+    text_1.insert("0.0",
+        "mode 1: Object detection\n"
+        "mode 2: Joint variables\n"
+        "mode 3: Coordinates\n"
+    )
+    text_1.configure(state="disabled")
+
+    mode = ctk.IntVar(value=1)
+
+
+    radframe = ctk.CTkFrame(left_frame)
+    radframe.grid(row=2, column=0, padx=14, pady=6, sticky='ew')
+
+    inframe = ctk.CTkFrame(left_frame)
+    inframe.grid(row=4, column=0, sticky='nsew', padx=14, pady=10)
+    inframe.grid_columnconfigure(0, weight=1)
+
+    add_frame =ctk.CTkFrame(left_frame)
+    add_frame.grid(row=3, column=0, padx=14, pady=(10, 6), sticky='ew')
+
+    # mode inputs
+    entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
+    entry_1.grid(row=1, column=0, padx=60, pady=5)
+    entry_1.grid_remove()
+
+    joint_entries = []
+    for i in range(5):
+        j = ctk.CTkEntry(inframe, placeholder_text=f"Joint {i+1}")
+        j.grid(row=i, column=0, padx=60, pady=5)
+        j.grid_remove()
+        joint_entries.append(j)
+
+    coordinate_entries = []
+    for i, lbl in enumerate(("X", "Y", "Z")):
+        c = ctk.CTkEntry(inframe, placeholder_text=lbl)
+        c.grid(row=i, column=0, padx=60, pady=5)
+        c.grid_remove()
+        coordinate_entries.append(c)
+
+    slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
+    slider_frame.grid(row=0, column=0, padx=4, pady=4)
+    slider_frame.grid_remove()
+
+    # --------------------------
+    # right frame
+
+    right_frame = ctk.CTkFrame(app)
+    right_frame.grid(row=0, column=1, sticky='nsew', padx=(6,12), pady=(12,6))
+
+    right_frame.grid_columnconfigure(0, weight=1)
+    right_frame.grid_rowconfigure(0, weight=1)   
+    right_frame.grid_rowconfigure(1, weight=0)  
+    right_frame.grid_rowconfigure(2, weight=0)
+    right_frame.grid_rowconfigure(3, weight=0)
+
+
+    # --------------------------
+
+    slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
+    slider_frame.grid(row=0, column=0, padx=10, pady=4)
+    slider_frame.grid_remove()
+
+
+    JOINT_LIMITS = [(-180, 180)] * 5   # TODO: set real per-joint limits
+
+    joint_sliders       = []
+    slider_value_labels = []
+    
+
+    for i, (low, high) in enumerate(JOINT_LIMITS):
+        row_frame = ctk.CTkFrame(slider_frame, fg_color='transparent')
+        row_frame.pack(fill='x', padx=14, pady=3)
+
+        ctk.CTkLabel(row_frame, text=f'J{i+1}', width=28, anchor='e').pack(side='left')
+        ctk.CTkLabel(row_frame, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+        ).pack(side='left', padx=(4, 2))
+
+        slider = ctk.CTkSlider(row_frame, from_=low, to=high,orientation='horizontal',
+            command=lambda val, idx=i: _on_slider(val, idx),)
+        slider.set(0)
+        slider.pack(side='left', fill='x', expand=True, padx=4)
+        joint_sliders.append(slider)
+
+        ctk.CTkLabel(
+            row_frame, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
+        ).pack(side='left', padx=(2, 4))
+
+        val_lbl = ctk.CTkLabel(row_frame, text='0°', width=48, anchor='w')
+        val_lbl.pack(side='left')
+        slider_value_labels.append(val_lbl)
+
+    def _on_slider(val, idx):
+        slider_value_labels[idx].configure(text=f'{round(val, 1)}°')
+        node.set_slider_joints([round(s.get(), 1) for s in joint_sliders])
+
+    def reset_sliders():
+        for i, s in enumerate(joint_sliders):
+            s.set(0)
+            slider_value_labels[i].configure(text='0°')
+        node.set_slider_joints([0.0] * 5)
+        status_label.configure(text='Sliders reset to 0°', text_color='gray')
+
+    # --------------------------
+    # functions
+
+    def show_inputs():
+        selected = mode.get()
+
+        entry_1.grid_remove()
+        for j in joint_entries:
+            j.grid_remove()
+        for c in coordinate_entries:
+            c.grid_remove()
+
+        if selected == 1:
+            entry_1.grid()
+        elif selected == 2:
+            for j in joint_entries:
+                j.grid()
+        elif selected == 3:
+            for c in coordinate_entries:
+                c.grid()
+        elif selected == 4:
+            slider_frame.grid()
+
+
+
+    # --------------------------
+    status_label = ctk.CTkLabel(right_frame, text='', text_color='gray')
+    status_label.grid(row=3, column=0, pady=(0, 6))
+
+    # --------------------------
+    button_frame = ctk.CTkFrame(right_frame, fg_color='transparent')
+    button_frame.grid(row=1, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
+    button_frame.grid_columnconfigure(tuple(range(6)), weight=1)
+    
+    # --------------------------
+    def validate(values):
+        try:
+            return all(v != '' and float(v) for v in values)
+        except ValueError:
+            return False
+
+    def save_file(selected, data: dict):
+        try:
+            with open('user_input.txt', 'w') as f:
+                f.write(f'Mode: {selected}\n')
+                if selected == 1:
+                    f.write(f"Object: {data['object']}\n")
+                elif selected == 2:
+                    f.write('Joints: ' + ', '.join(str(j) for j in data['joints']) + '\n')
+                elif selected == 3:
+                    f.write('Coordinates: ' + ', '.join(str(c) for c in data['coordinates']) + '\n')
+            status_label.configure(text='Saved to user_input.txt', text_color='green')
+        except IOError as e:
+            status_label.configure(text=f'File error: {e}', text_color='red')
+
+    # --------------------------
+    # radio buttons
+
+    ctk.CTkRadioButton(radframe, text="Mode 1",
+                       variable=mode, value=1,
+                       command=show_inputs).pack(anchor ='w', padx=10, pady=6)
+
+    ctk.CTkRadioButton(radframe, text="Mode 2",
+                       variable=mode, value=2,
+                       command=show_inputs).pack(anchor ='w', padx=10, pady=6)
+
+    ctk.CTkRadioButton(radframe, text="Mode 3",
+                       variable=mode, value=3,
+                       command=show_inputs).pack(anchor ='w', padx=10, pady=6)
+
+    ctk.CTkRadioButton(radframe, text = 'Manual control',
+                       variable=mode, value=4,
+                       command=show_inputs).pack(anchor ='w', padx=10, pady=6)
+
+
+    tabview = ctk.CTkTabview(right_frame)
+    tabview.grid(row=0, column=0, sticky='nsew', padx=10, pady=(10, 4))
+
+    tabview.add("joint positions")
+    tabview.add("coordinates")
+    tabview.add('slider values')
+
+    
+    joint_frame = ctk.CTkScrollableFrame(tabview.tab("joint positions"), height=180)
+    joint_frame.pack(fill="both", expand=True)
+ 
+    coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=180)
+    coordinate_frame.pack(fill="both", expand=True)
+
+    # --------------------------
+    joint_count = [0]
+    coord_count = [0]
+
+    def add_values():
+        sel = mode.get()
+        if sel == 2:
+            vals = [e.get() for e in joint_entries]
+            if not validate(vals):
+                status_label.configure(text='Invalid or missing joint values.', text_color='red')
+                return
+            joint_count[0] += 1
+            status_label.configure(
+                text=f"Added J{joint_count[0]}: {', '.join(vals)}",
+                text_color='green'
+            )
+            for e in joint_entries: e.delete(0, 'end')
+
+        elif sel == 3:
+            vals = [e.get() for e in coordinate_entries]
+            if not validate(vals):
+                status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
+                return
+            coord_count[0] += 1
+            status_label.configure(
+                text=f"Added point {coord_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
+                text_color='green'
+            )
+            for e in coordinate_entries: e.delete(0, 'end')
+        else:
+            status_label.configure(text='Select mode 2 or 3 to add points.', text_color='orange')
+
+    ctk.CTkButton(add_frame, text='Add Point', command=add_values).pack(pady=6, padx=10, fill='x')
+
+
+    # --------------------------
+    # run
+
+    def run():
+        selected = mode.get()
+
+        if selected == 1:
+            obj = entry_1.get()
+            if not obj:
+                status_label.configure(text='No object entered', text_color='red')
+                return
+            node.publish_object(obj)
+            status_label.configure(text=f'Target: {obj}', text_color='green')
+
+    # --------------------------
+    def open_gripper():
+        node.publish_gripper('open')
+        status_label.configure(text='Gripper opening...', text_color='green')
+
+    def close_gripper():
+        node.publish_gripper('close')
+        status_label.configure(text='Gripper closing...', text_color='green')
+
+    def close():
+        nonlocal camera_window
+        if camera_window is not None and camera_window.winfo_exists():
+            camera_window.close()
+        node.destroy_node()
+        app.destroy()
+ 
+    def open_camera():
+        nonlocal camera_window
+        if camera_window is None or not camera_window.winfo_exists():
+            camera_window = CameraWindow(app)
+        else:
+            camera_window.focus()
+
+        
+    # --------------------------
+    for col, (txt, cmd, kw) in enumerate([
+        ('Run',           run,          {}),
+        ('Open Gripper',  open_gripper, {}),
+        ('Close Gripper', close_gripper,{}),
+        ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
+        ('Camera',        open_camera,  {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
+        ('Exit',          close,        {'fg_color': '#6b1f1f', 'hover_color': '#4a1515'}),
+    ]):
+        ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
+            row=0, column=col, padx=4
+        )
+
+    return app
+
+# --------------------------
 
 if __name__ == '__main__':
-	node = ArmGUI()
-	build_gui(node)
- 
-
- 
- 
-
+    main()
