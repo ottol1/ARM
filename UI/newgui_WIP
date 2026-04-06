@@ -270,8 +270,16 @@ def build_gui(node: ArmGUI):
 		else:
 			print("invalid or no selection")
 		
-		app.mainloop()
+		returnapp
 
+def main():
+    node = ArmGuiNode()
+ 
+ 
+    app = build_gui(node)
+    app.mainloop()
+ 
+    node.destroy_node()
 
 
 if __name__ == '__main__':
