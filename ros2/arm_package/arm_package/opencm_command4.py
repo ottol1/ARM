@@ -4,19 +4,10 @@
 
 import rclpy
 from rclpy.node import Node
-# from control_msgs.action import FollowJointTrajectory
-# from trajectory_msgs.msg import JointTrajectoryPoint
-# from rclpy.action import ActionClient
-# from rclpy.qos import QoSProfile
 from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
 import serial
 import math
-
-# this should allow us to start opencm_command before or after the joint trajectory has been sent
-# pos_deg = [154, 343, 165, 188, 157, 0] # default starting configuration
-# vel_rpm = [30, 30, 30, 30, 30, 30] # safe velocity to move at
-
 
 
 class opencmCommandNode(Node):
@@ -33,14 +24,8 @@ class opencmCommandNode(Node):
 		
 		# subscribe to the controller topics
 		self.arm_subscription = self.create_subscription(
-			# FollowJointTrajectory.Goal,
-			#JointTrajectory
 			JointTrajectoryControllerState,
-			#'/joint_trajectory', # possible alternatives: /arm_controller/controller_state
 			'/arm_controller/controller_state',
-			# will also need /gripper_controller/
-			#'/arm_controller/joint_trajectory'
-			# '/arm_controller/follow_joint_trajectory/_action/goal'
 			self.arm_listener,
 			10)
 		self.gripper_subscription = self.create_subscription(
@@ -53,13 +38,13 @@ class opencmCommandNode(Node):
 		self.publisher = self.create_publisher(
 			JointState,
 			'/joint_state',
-			#self.listener_callback,
 			10)
+		
 		self.prev_posCommand_int = [2048, 1024, 2048, 614, 614, 0] # initial positions
 		self.joint_positions_int = [2048, 1024, 2048, 614, 614, 0]
 		self.posCommand_int = [2048, 1024, 2048, 614, 614, 0]
 		self.velCommand_int = [131, 131, 131, 273, 273, 273]
-		self.joint_tolerance = [11, 3, 102] # joint tolerance of 1 degree (in steps respective to motor) and 0.1 N before processing next command
+		# self.joint_tolerance = [11, 3, 102] # joint tolerance of 1 degree (in steps respective to motor) and 0.1 N before processing next command
 		self.prev_posCommand_rad = [0.0]*6
 		self.prev_velCommand_rad = [0.0]*6
 		self.posCommand_rad = [0.0]*6
@@ -69,6 +54,7 @@ class opencmCommandNode(Node):
 		
 	
 	def gripper_listener(self, msg):
+		# check for new gripper messages
 		if msg.desired:
 			print(f"Gripper msg recieved: {msg.desired}")
 			self.posCommand_rad[5] = list(msg.desired.positions)
@@ -76,6 +62,7 @@ class opencmCommandNode(Node):
 			
 
 	def arm_listener(self, msg):
+		# check for new arm messages
 		if msg.desired:
 			print(f"Arm msg recieved: {msg.desired}")
 			arm_posCommand_rad = list(msg.desired.positions)
@@ -160,7 +147,7 @@ class opencmCommandNode(Node):
 			elif i == 5:
 				# force sensor works a bit differently
 				self.posCommand_int[5] = self.posCommand_rad[5]*1023 # up to 1 N
-				self.velCommand_int[5] = int((abs(self.velCommand_rad[5])*60/(2*math.pi))/0.229) + 1 # 0.229 rev/min per pulse | 0 - 2047 pulses
+				self.velCommand_int[5] = int((abs(self.velCommand_rad[5])*60/(2*math.pi))/0.229) + 1025 # 0.229 rev/min per pulse | 1025 - 2047 pulses for reversed direction
 
 
 	def listener_callback(self):
@@ -171,53 +158,12 @@ class opencmCommandNode(Node):
 
 
 		# check if the current joint positions match the previous joint command
-		# if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int):
+		# if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int): # - after we get the UI working, we need to double back to see if this is needed
 
-
-			# # get the most recent trajectory point
-			# if msg.desired: # if there is a new position and velocity, update it!
-			# 	# get target positions and velocity from the first point in the trajectory, could be adapted to cycle through trajectory points?
-			# 	# print(f"Recieved: {msg.points[-1]}")
-			# 	# trajectory = msg.goal.trajectory.points[-1]
-			# 	# print(f"Recieved: {trajectory}")	
-			# 	# format commands to send over serial
-			# 	# posCommand_rad = list(msg.points[-1].positions)
-			# 	# velCommand_rad = list(msg.points[-1].velocities)
-			# 	print(f"Recieved: {msg.desired}")	
-			# 	posCommand_rad = list(msg.desired.positions)
-			# 	velCommand_rad = list(msg.desired.velocities) # leave velocity in rpm
-			# 	# posCommand_rad = list(trajectory.positions)
-			# 	# velCommand_rad = list(trajectory.velocities)
-
-			# posCommand_rad[3], posCommand_rad[4], velCommand_rad[3], velCommand_rad[4] = self.wrist_math(posCommand_rad[3], posCommand_rad[4], velCommand_rad[3], velCommand_rad[4])
-			
-			# self.rad_to_int(posCommand_rad, velCommand_rad)
-		
-		# get the most recent trajectory point
-		# if msg.desired: # if there is a new position and velocity, update it!
-
-		# 	print(f"Recieved: {msg.desired}")	
-		# 	posCommand_rad = list(msg.desired.positions)
-		# 	velCommand_rad = list(msg.desired.velocities) # leave velocity in rpm
-
-		# 	# quick math for the wrist joint
-		# 	posCommand_rad[3], posCommand_rad[4], velCommand_rad[3], velCommand_rad[4] = self.wrist_math(posCommand_rad[3], posCommand_rad[4], velCommand_rad[3], velCommand_rad[4])
-			
-		# 	#convert to integers, and save to self variables
-		# 	self.rad_to_int(posCommand_rad, velCommand_rad)
-
-		# print("Starting arm_listener")
-		# self.arm_listener() # should be able to listen to both topics now
-		# print("Exited arm_listener, starting gripper_listener")
-		# self.gripper_listener()	
-		# print("Exited gripper_listener, starting wrist_math")
-		print("Starting wrist_math")
 		self.wrist_math()
-		print("Exited wrist_math, starting rad_to_int")
 			
 		#convert to integers, and save to self variables
 		self.rad_to_int()
-		print("Exited rad_to_int")
 		# format string for broadcast: P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
 		command = f"{','.join(map(str, self.posCommand_int))},{','.join(map(str, self.velCommand_int))}\n"
 		print(f"Command: {command}")
@@ -277,7 +223,6 @@ def main():
 		pass
 	finally:
 		node.destroy_node()
-		#rclpy.shutdown()
 	
 if __name__ == '__main__':
 	main()
