@@ -6,8 +6,7 @@ class ArmGUI(ctk.CTk):
     def __init__(self):
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
-        self.slider_active = False
-        print('[ArmGui] STUB mode — ROS2 not connected')
+
 
     def set_slider_joints(self, degrees: list):
         with self.slider_lock:
@@ -102,9 +101,11 @@ def main():
     ctk.set_default_color_theme('blue')
 
     app = ctk.CTk()
+    app.lift()
+    app.focus_force()
     app.geometry('1000x680')
     app.title('ARM user control')
-    app.eval('tk::PlaceWindow . center')
+    #app.eval('tk::PlaceWindow . center')
     app.resizable(True, True)
 
     app.grid_rowconfigure(0, weight=1)
@@ -149,6 +150,9 @@ def main():
     add_frame =ctk.CTkFrame(left_frame)
     add_frame.grid(row=3, column=0, padx=14, pady=(10, 6), sticky='ew')
 
+    slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
+    slider_frame.grid(row=0, column=0, padx=4, pady=4)
+
     # mode inputs
     entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
     entry_1.grid(row=1, column=0, padx=60, pady=5)
@@ -168,10 +172,44 @@ def main():
         c.grid_remove()
         coordinate_entries.append(c)
 
-    slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
-    slider_frame.grid(row=0, column=0, padx=4, pady=4)
+    JOINT_LIMITS = [(-180, 180)] * 5   # TODO: set real per-joint limits
+    joint_sliders       = []
+    slider_value_labels = []
+    for i, (low, high) in enumerate(JOINT_LIMITS):
+        s = ctk.CTkFrame(slider_frame, fg_color='transparent')
+        s.pack(fill='x', padx=14, pady=3)
+
+        slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
+        slider.set(0)
+        slider.pack(side='left', fill='x', expand=True, padx=4)
+
+        ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w')
+
+        ctk.CTkLabel(s, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+        ).pack(side='left', padx=(4, 2))
+
+        ctk.CTkLabel(s, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
+        ).pack(side='left', padx=(2, 4))
+
+        values = ctk.CTkLabel(s, text='0°', width=48, anchor='w')
+        values.pack(side='left')
+
+        slider_value_labels.append(values)
+        joint_sliders.append(slider)
     slider_frame.grid_remove()
 
+
+
+    def _on_slider(val, idx):
+        slider_value_labels[idx].configure(text=f'{round(val, 1)}°')
+        node.set_slider_joints([round(s.get(), 1) for s in joint_sliders])
+
+    def reset_sliders():
+        for i, s in enumerate(joint_sliders):
+            s.set(0)
+            slider_value_labels[i].configure(text='0°')
+        node.set_slider_joints([0.0] * 5)
+        status_label.configure(text='Sliders reset to 0°', text_color='gray')
     # --------------------------
     # right frame
 
@@ -186,58 +224,13 @@ def main():
 
 
     # --------------------------
-
-    slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
-    slider_frame.grid(row=0, column=0, padx=10, pady=4)
-    slider_frame.grid_remove()
-
-
-    JOINT_LIMITS = [(-180, 180)] * 5   # TODO: set real per-joint limits
-
-    joint_sliders       = []
-    slider_value_labels = []
-    
-
-    for i, (low, high) in enumerate(JOINT_LIMITS):
-        row_frame = ctk.CTkFrame(slider_frame, fg_color='transparent')
-        row_frame.pack(fill='x', padx=14, pady=3)
-
-        ctk.CTkLabel(row_frame, text=f'J{i+1}', width=28, anchor='e').pack(side='left')
-        ctk.CTkLabel(row_frame, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
-        ).pack(side='left', padx=(4, 2))
-
-        slider = ctk.CTkSlider(row_frame, from_=low, to=high,orientation='horizontal',
-            command=lambda val, idx=i: _on_slider(val, idx),)
-        slider.set(0)
-        slider.pack(side='left', fill='x', expand=True, padx=4)
-        joint_sliders.append(slider)
-
-        ctk.CTkLabel(
-            row_frame, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
-        ).pack(side='left', padx=(2, 4))
-
-        val_lbl = ctk.CTkLabel(row_frame, text='0°', width=48, anchor='w')
-        val_lbl.pack(side='left')
-        slider_value_labels.append(val_lbl)
-
-    def _on_slider(val, idx):
-        slider_value_labels[idx].configure(text=f'{round(val, 1)}°')
-        node.set_slider_joints([round(s.get(), 1) for s in joint_sliders])
-
-    def reset_sliders():
-        for i, s in enumerate(joint_sliders):
-            s.set(0)
-            slider_value_labels[i].configure(text='0°')
-        node.set_slider_joints([0.0] * 5)
-        status_label.configure(text='Sliders reset to 0°', text_color='gray')
-
-    # --------------------------
     # functions
 
     def show_inputs():
         selected = mode.get()
 
         entry_1.grid_remove()
+        slider_frame.grid_remove()
         for j in joint_entries:
             j.grid_remove()
         for c in coordinate_entries:
@@ -253,7 +246,7 @@ def main():
                 c.grid()
         elif selected == 4:
             slider_frame.grid()
-
+            
 
 
     # --------------------------
@@ -322,38 +315,54 @@ def main():
 
     # --------------------------
     joint_count = [0]
-    coord_count = [0]
+    coordinate_count = [0]
 
     def add_values():
-        sel = mode.get()
-        if sel == 2:
-            vals = [e.get() for e in joint_entries]
+        selected = mode.get()
+#
+        if selected == 2:
+            vals = [j.get() for j in joint_entries]
             if not validate(vals):
                 status_label.configure(text='Invalid or missing joint values.', text_color='red')
                 return
-            joint_count[0] += 1
-            status_label.configure(
-                text=f"Added J{joint_count[0]}: {', '.join(vals)}",
-                text_color='green'
-            )
-            for e in joint_entries: e.delete(0, 'end')
 
-        elif sel == 3:
-            vals = [e.get() for e in coordinate_entries]
+            joint_count[0] += 1
+
+            ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
+
+            status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}",text_color='green')
+            for j in joint_entries: j.delete(0, 'end')
+#
+        elif selected == 3:
+            vals = [c.get() for c in coordinate_entries]
             if not validate(vals):
                 status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
                 return
-            coord_count[0] += 1
+
+            coordinate_count[0] += 1
+
+            ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(anchor="w",pady=2)
+
             status_label.configure(
-                text=f"Added point {coord_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
-                text_color='green'
-            )
-            for e in coordinate_entries: e.delete(0, 'end')
+                text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
+                text_color='green')
+            for c in coordinate_entries: c.delete(0, 'end')
+
+#
+        elif selected == 4:
+            vals = [slider.get for slider in joint_sliders]
+            if not validate(vals):
+                status_label.configure(text='Invalid or missing values.', text_color='red')
+                return
+            ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
+
+
+
+#
         else:
-            status_label.configure(text='Select mode 2 or 3 to add points.', text_color='orange')
+            status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
 
-    ctk.CTkButton(add_frame, text='Add Point', command=add_values).pack(pady=6, padx=10, fill='x')
-
+    ctk.CTkButton(add_frame, text='Add Values', command=add_values).pack(pady=6, padx=10, fill='x')
 
     # --------------------------
     # run
@@ -372,11 +381,11 @@ def main():
     # --------------------------
     def open_gripper():
         node.publish_gripper('open')
-        status_label.configure(text='Gripper opening...', text_color='green')
+        status_label.configure(text='Gripper opening', text_color='green')
 
     def close_gripper():
         node.publish_gripper('close')
-        status_label.configure(text='Gripper closing...', text_color='green')
+        status_label.configure(text='Gripper closing', text_color='green')
 
     def close():
         nonlocal camera_window
@@ -395,11 +404,11 @@ def main():
         
     # --------------------------
     for col, (txt, cmd, kw) in enumerate([
-        ('Run',           run,          {}),
+        ('Run',           run,          {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
         ('Open Gripper',  open_gripper, {}),
         ('Close Gripper', close_gripper,{}),
         ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
-        ('Camera',        open_camera,  {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
+        ('Camera',        open_camera,  {}),
         ('Exit',          close,        {'fg_color': '#6b1f1f', 'hover_color': '#4a1515'}),
     ]):
         ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
@@ -411,4 +420,5 @@ def main():
 # --------------------------
 
 if __name__ == '__main__':
-    main()
+    app = main()
+    app.mainloop()
