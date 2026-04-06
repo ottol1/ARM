@@ -2,7 +2,7 @@
 # Team: Articulated Removable Manipulator (ARM), 2025-2026
 # This code is intended to be used to control the motion of the ARM based on what the camera sees.
 # This code is NOT intended to be used at the same time as opencm_command3.
-# To have something to start off with, I am copying the opencm_command3 code.
+# To have something to start off with, I am copying the opencm_command3 and opencm_command4 code.
 # Start NanoOwl before running this code.
 
 import rclpy
@@ -10,9 +10,7 @@ from rclpy.node import Node
 from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
 from vision_msgs.msg import Detection2DArray
-# from vision_msgs.msg import Detection2D
 from vision_msgs.msg import BoundingBox2D
-# from vision_msgs.msg import Pose2D
 import serial
 import pyrealsense2 as rs
 import math
@@ -46,22 +44,22 @@ class visionMotionNode(Node):
 #             self.get_logger().error(f"Serial Error: {e}")
 #             raise e
 
-        # subscribe to joint_trajectory topic
-        # self.subscription = self.create_subscription(
-        #     # FollowJointTrajectory.Goal,
-        #     # JointTrajectory
+        # # subscribe to the controller topics
+        # self.arm_subscription = self.create_subscription(
         #     JointTrajectoryControllerState,
-        #     # '/joint_trajectory', # possible alternatives: /arm_controller/controller_state
         #     '/arm_controller/controller_state',
-        #     # will also need /gripper_controller/
-        #     # '/arm_controller/joint_trajectory'
-        #     # '/arm_controller/follow_joint_trajectory/_action/goal'
-        #     self.listener_callback,
+        #     self.arm_listener,
         #     10)
+        # self.gripper_subscription = self.create_subscription(
+        #     JointTrajectoryControllerState,
+        #     'gripper_controller/controller_state',
+        #     self.gripper_listener,
+        #     10)
+        #
+        # # publish to joint_state topic
         # self.publisher = self.create_publisher(
         #     JointState,
         #     '/joint_state',
-        #     # self.listener_callback,
         #     10)
 
         # subscribe to bounding boxes topic
@@ -80,8 +78,30 @@ class visionMotionNode(Node):
         # self.joint_positions_int = [2048, 1024, 2048, 614, 614, 0]
         # self.posCommand_int = [2048, 1024, 2048, 614, 614, 0]
         # self.velCommand_int = [131, 131, 131, 273, 273, 273]
-        # self.joint_tolerance = [11, 3,
-        #                         102]  # joint tolerance of 1 degree (in steps respective to motor) and 0.1 N before processing next command
+        # self.joint_tolerance = [11, 3, 102]  # joint tolerance of 1 degree (in steps respective to motor) and 0.1 N before processing next command
+        # self.prev_posCommand_rad = [0.0] * 6
+        # self.prev_velCommand_rad = [0.0] * 6
+        # self.posCommand_rad = [0.0] * 6
+        # self.velCommand_rad = [0.0] * 6
+
+        # self.timer = self.create_timer(0.02, self.listener_callback)  # needed to spin the node
+
+    # def gripper_listener(self, msg):
+    #     # check for new gripper messages
+    #     if msg.desired:
+    #         print(f"Gripper msg recieved: {msg.desired}")
+    #         self.posCommand_rad[5] = list(msg.desired.positions)
+    #         self.velCommand_rad[5] = list(msg.desired.velocities)
+    #
+    # def arm_listener(self, msg):
+    #     # check for new arm messages
+    #     if msg.desired:
+    #         print(f"Arm msg recieved: {msg.desired}")
+    #         arm_posCommand_rad = list(msg.desired.positions)
+    #         arm_velCommand_rad = list(msg.desired.velocities)
+    #         for i in range(5):
+    #             self.posCommand_rad[i] = arm_posCommand_rad[i]
+    #             self.velCommand_rad[i] = arm_velCommand_rad[i]
 
     # def vector_compare(self, a, b):
     #     # Check if the values are within 5 degrees each other
@@ -99,119 +119,116 @@ class visionMotionNode(Node):
     #                 return True
     #     return False
 
+    # convert wrist attitude and rotation to joint
+    # def wrist_math(self):
+    #     # quick math for the wrist joint
+    #     wristAtt_pos = self.posCommand_rad[3]
+    #     wristRot_pos = self.posCommand_rad[4]
+    #     wristAtt_vel = self.velCommand_rad[3]
+    #     wristRot_vel = self.velCommand_rad[4]
+    #
+    #     servo4_pos = 0.0
+    #     servo5_pos = 0.0
+    #     servo4_vel = 0.0
+    #     servo5_vel = 0.0
+    #
+    #     if wristAtt_pos > self.prev_posCommand_rad[3]:  # if wrist angle is increasing
+    #         servo4_pos += wristAtt_pos - self.prev_posCommand_rad[3]
+    #         servo5_pos -= wristAtt_pos - self.prev_posCommand_rad[3]
+    #     if wristAtt_pos < self.prev_posCommand_rad[3]:  # if wrist angle is decreasing
+    #         servo4_pos -= self.prev_posCommand_rad[3] - wristAtt_pos
+    #         servo5_pos += self.prev_posCommand_rad[3] - wristAtt_pos
+    #     if wristRot_pos > self.prev_posCommand_rad[4]:  # if frame angle is increasing
+    #         servo4_pos -= wristRot_pos - self.prev_posCommand_rad[4]
+    #         servo5_pos -= wristRot_pos - self.prev_posCommand_rad[4]
+    #     if wristRot_pos < self.prev_posCommand_rad[4]:  # if frame angle is decreasing
+    #         servo4_pos += self.prev_posCommand_rad[4] - wristRot_pos
+    #         servo5_pos += self.prev_posCommand_rad[4] - wristRot_pos
+    #
+    #     if wristAtt_vel > self.prev_velCommand_rad[3]:  # if wrist angle is increasing
+    #         servo4_vel += wristAtt_vel - self.prev_velCommand_rad[3]
+    #         servo5_vel -= wristAtt_vel - self.prev_velCommand_rad[3]
+    #     if wristAtt_vel < self.prev_velCommand_rad[3]:  # if wrist angle is decreasing
+    #         servo4_vel -= self.prev_velCommand_rad[3] - wristAtt_vel
+    #         servo5_vel += self.prev_velCommand_rad[3] - wristAtt_vel
+    #     if wristRot_vel > self.prev_velCommand_rad[4]:  # if frame angle is increasing
+    #         servo4_vel -= wristRot_vel - self.prev_velCommand_rad[4]
+    #         servo5_vel -= wristRot_vel - self.prev_velCommand_rad[4]
+    #     if wristRot_vel < self.prev_velCommand_rad[4]:  # if frame angle is decreasing
+    #         servo4_vel += self.prev_velCommand_rad[4] - wristRot_vel
+    #         servo5_vel += self.prev_velCommand_rad[4] - wristRot_vel
+    #
+    #     self.posCommand_rad[3] = servo4_pos
+    #     self.posCommand_rad[4] = servo5_pos
+    #     self.velCommand_rad[3] = servo4_vel
+    #     self.velCommand_rad[4] = servo5_vel
+
+
+    # def rad_to_int(self):
+    #     # convert to integers for dynamixel to use
+    #     for i in range(6):
+    #         if i < 3:
+    #             # convert to integers based on dynamixel protocol 2
+    #             self.posCommand_int[i] = int((self.posCommand_rad[i]+math.pi)*4095/(2*math.pi)) # 0.088 deg per pulse, in rad | 0 - 4095 pulses
+    #             self.velCommand_int[i] = int((abs(self.velCommand_rad[i])*60/(2*math.pi))/0.229) + 1 # 0.229 rev/min per pulse | 0 - 2047 pulses
+    #         elif i < 5:
+    #             # convert to integers based on dynamixel protocol 1
+    #             self.posCommand_int[i] = int((self.posCommand_rad[i]+math.pi)*1023/((2*math.pi)*(300/360))) # 0.293 deg per pulse, in rad (only to 300 deg) | 0 - 1023 pulses
+    #             self.velCommand_int[i] = int((abs(self.velCommand_rad[i])*60/(2*math.pi))/0.11) + 1 # 0.110 rev/min per pulse | 0 - 1023 pulses
+    #         elif i == 5:
+    #             # force sensor works a bit differently
+    #             self.posCommand_int[5] = self.posCommand_rad[5]*1023 # up to 1 N
+    #             self.velCommand_int[5] = int((abs(self.velCommand_rad[5])*60/(2*math.pi))/0.229) + 1025 # 0.229 rev/min per pulse | 1025 - 2047 pulses for reversed direction
+
+
     def listener_callback(self, msg):
-
-        # joint_states = JointState()
-        # joint_positions_rad = [0.0] * 6
-        # # joint_velocities = [0.0]*6
-        # posCommand_rad = [0.0] * 6
-        # prev_posCommand_rad = [0.0] * 6
-        # velCommand_rad = [0.0] * 6
-        # prev_velCommand_rad = [0.0] * 6
-        # motor4_pos = 0
-        # motor5_pos = 0
-        # motor4_vel = 0
-        # motor5_vel = 0
-
-        # bounding_boxes = BoundingBox2D()
-        # print(f"Bounding box data: {bounding_boxes}") # Not this one. It only returns 0s
-
         if msg.detections:
             print(f"Bounding box center x:\n{msg.detections[1].bbox.center.position.x}")
             print(f"Bounding box center y:\n{msg.detections[1].bbox.center.position.y}\n")
-
         else:
             print("No message detected\n")
-
-        # get the most recent trajectory point
-        # if msg.desired:  # if there is a new position and velocity, update it!
+        # joint_states = JointState()
+        # joint_positions_rad = [0.0] * 6
+        # # joint_velocities_rad = [0.0]*6
         #
-        #     #print(f"Received: {msg.desired}")
-        #     posCommand_rad = list(msg.desired.positions)
-        #     velCommand_rad = list(msg.desired.velocities)  # leave velocity in rpm
+        # # check if the current joint positions match the previous joint command
+        # # if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int): # - after we get the UI working, we need to double back to see if this is needed
         #
-        #     # quick math for the wrist joint
-        #     if posCommand_rad[3] > prev_posCommand_rad[3]:  # if wrist angle is increasing
-        #         motor4_pos += posCommand_rad[3] - prev_posCommand_rad[3]
-        #         motor5_pos -= posCommand_rad[3] - prev_posCommand_rad[3]
-        #     if posCommand_rad[3] < prev_posCommand_rad[3]:  # if wrist angle is decreasing
-        #         motor4_pos -= prev_posCommand_rad[3] - posCommand_rad[3]
-        #         motor5_pos += prev_posCommand_rad[3] - posCommand_rad[3]
-        #     if posCommand_rad[4] > prev_posCommand_rad[4]:  # if frame angle is increasing
-        #         motor4_pos -= posCommand_rad[4] - prev_posCommand_rad[4]
-        #         motor5_pos -= posCommand_rad[4] - prev_posCommand_rad[4]
-        #     if posCommand_rad[4] < prev_posCommand_rad[4]:  # if frame angle is decreasing
-        #         motor4_pos += prev_posCommand_rad[4] - posCommand_rad[4]
-        #         motor5_pos += prev_posCommand_rad[4] - posCommand_rad[4]
+        # self.wrist_math()
         #
-        #     if velCommand_rad[3] > prev_velCommand_rad[3]:  # if wrist angle is increasing
-        #         motor4_vel += velCommand_rad[3] - prev_velCommand_rad[3]
-        #         motor5_vel -= velCommand_rad[3] - prev_velCommand_rad[3]
-        #     if velCommand_rad[3] < prev_velCommand_rad[3]:  # if wrist angle is decreasing
-        #         motor4_vel -= prev_velCommand_rad[3] - velCommand_rad[3]
-        #         motor5_vel += prev_velCommand_rad[3] - velCommand_rad[3]
-        #     if velCommand_rad[4] > prev_velCommand_rad[4]:  # if frame angle is increasing
-        #         motor4_vel -= velCommand_rad[4] - prev_velCommand_rad[4]
-        #         motor5_vel -= velCommand_rad[4] - prev_velCommand_rad[4]
-        #     if velCommand_rad[4] < prev_velCommand_rad[4]:  # if frame angle is decreasing
-        #         motor4_vel += prev_velCommand_rad[4] - velCommand_rad[4]
-        #         motor5_vel += prev_velCommand_rad[4] - velCommand_rad[4]
+        # # convert to integers, and save to self variables
+        # self.rad_to_int()
+        # # format string for broadcast: P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
+        # command = f"{','.join(map(str, self.posCommand_int))},{','.join(map(str, self.velCommand_int))}\n"
+        # print(f"Command: {command}")
         #
-        #     posCommand_rad[3] = motor4_pos
-        #     posCommand_rad[4] = motor5_pos
-        #
-        #     velCommand_rad[3] = motor4_vel
-        #     velCommand_rad[4] = motor5_vel
-        #
-        #     for i in range(6):
-        #         if i < 3:
-        #             # convert to integers based on dynamixel protocol 2
-        #             self.posCommand_int[i] = int((posCommand_rad[i] + math.pi) * 4095 / (
-        #                         2 * math.pi))  # 0.088 deg per pulse, in rad | 0 - 4095 pulses
-        #             self.velCommand_int[i] = int((abs(velCommand_rad[i]) * 60 / (
-        #                         2 * math.pi)) / 0.229) + 1  # 0.229 rev/min per pulse | 0 - 2047 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
-        #         elif i < 5:
-        #             # convert to integers based on dynamixel protocol 1
-        #             self.posCommand_int[i] = int((posCommand_rad[i] + math.pi) * 1023 / ((2 * math.pi) * (
-        #                         300 / 360)))  # 0.293 deg per pulse, in rad (only to 300 deg) | 0 - 1023 pulses
-        #             self.velCommand_int[i] = int((abs(velCommand_rad[i]) * 60 / (
-        #                         2 * math.pi)) / 0.11) + 1  # 0.110 rev/min per pulse | 0 - 1023 pulses # CONVERT FROM RADIANS PER SECOND, NOT RPM
-        #
-        #     # NEED TO FIGURE OUT WHERE TO PULL THE DESIRED FORCE SENSOR VALUE FROM
-        #     self.posCommand_int[5] = 0
-        #     self.velCommand_int[5] = 273
-
-        # format string for broadcast: P1,P2,P3,P4,P5,P6,V1,V2,V3,V4,V5,V6\n
-        #command = f"{','.join(map(str, self.posCommand_int))},{','.join(map(str, self.velCommand_int))}\n"
-        #print(f"Command: {command}")
-
-        # try to send command
-        #try:
-            # # self.get_logger().info(f"Sending Command: {command}")
-            #self.ser.write(command.encode('utf-8'))
-            #self.ser.flush()  # wait for transmission to finish
-        # self.get_logger().info("Command Sent!")
-
-        #except Exception as e:
-        #    self.get_logger().error(f"Write failed: {e}")
-
+        # # try to send command
         # try:
-        #     # self.get_logger().info("Waiting to receive joint data")
+        #     # self.get_logger().info(f"Sending Command: {command}")
+        #     self.ser.write(command.encode('utf-8'))
+        #     self.ser.flush()  # wait for transmission to finish
+        # # self.get_logger().info("Command Sent!")
+        #
+        # except Exception as e:
+        #     self.get_logger().error(f"Write failed: {e}")
+        #
+        # try:
+        #     # self.get_logger().info("Waiting to recieve joint data")
         #     joint_data = self.ser.readline().decode('utf-8').rstrip().split(
         #         ',')  # convert utf-8 status message into a vector
-        #     # self.get_logger().info(f"Received Data: {jointData}")
-        #     #print(f"Feedback: {joint_data}")
-
+        #     # self.get_logger().info(f"Recieved Data: {jointData}")
+        #     print(f"Feedback: {joint_data}")
+        #
         # except Exception as e:
-        #     self.get_logger().error("Failed to receive joint data: {e}")
-
+        #     self.get_logger().error("Failed to recieve joint data: {e}")
+        #
         # joint_states.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
-
+        #
         # for i in range(6):
         #     self.joint_positions_int[i] = int(float(joint_data[i]))
         #     if i < 3:
         #         joint_positions_rad[i] = float(joint_data[i]) * math.pi / 4095.0
-        #     # joint_velocities[i] = float(jointData[i+6]) # new system will only receive positions
+        #     # joint_velocities[i] = float(jointData[i+6]) # new system will only recieve positions
         #     elif i < 5:
         #         joint_positions_rad[i] = float(joint_data[i]) * (math.pi - 0.5235987756) / 1023.0
         #     elif i == 5:
@@ -221,24 +238,25 @@ class visionMotionNode(Node):
         # self.publisher.publish(joint_states)
         # # print(self.joint_positions_int)
         #
-        # prev_posCommand_rad = posCommand_rad
+        # self.prev_posCommand_rad = self.posCommand_rad
+        # self.prev_velCommand_rad = self.velCommand_rad
 
     def destroy_node(self):
         #self.ser.close()
         super().destroy_node()
 
-
 def main():
+    print("Entered vision_motion main")
     rclpy.init()
     node = visionMotionNode()
+    print("Assigned vision_motion node")
     try:
+        print("Trying to spin vision_motion node")
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy_node()
-    # rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
