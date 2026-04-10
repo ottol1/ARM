@@ -4,8 +4,56 @@ import math
 
 class ArmGUI(ctk.CTk):
     def __init__(self):
+        super().__init__('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
+        self.posCommand=[180, 180, 180, 180, 180, 0]
+        self.velCommand=[.2, .2, .2, .2, .2]
+        
+
+#	publish to the arm_controller/controller_state topic
+
+        self.arm_publisher = self.create_publisher(
+            JointTrajectoryControllerState,
+            '/arm_controller/controller_state',
+            10
+        )
+
+#	publish to the gripper_controller/controller_state topic
+
+        self.gripper_publisher = self.create_publisher(
+            JointTrajectoryControllerState,
+            'gripper_controller/controller_state',
+            10
+        )
+
+#	subscribe to the joint_state topic
+
+        self.state_subscriber = self.create_subscriber(
+            JointState,
+            '/joint_state',
+            self.arm_state_subscriber,
+            10
+        )
+
+
+#	publish the noint values
+    def arm_command_publisher(self):
+        arm_command = JointTrajectoryControllerState()
+        gripper_command = JointTrajectoryControllerState()
+
+        arm_command.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
+        gripper_command.name = 'joint6'
+
+        arm_command.desired.positions = self.posCommand[:5]
+        arm_command.desired.velocities = self.velCommand[:5]
+        gripper_command.desired.positions = self.posCommand[5]
+        gripper_command.desired.velocities = self.velCommand[5]   
+        
+    def arm_state_subscriber(self, msg):
+        posActual = list(msg.position)
+        velActual = list(msg.velocity)
+
 
 
     def set_slider_joints(self, degrees: list):
@@ -95,7 +143,6 @@ class CameraWindow(ctk.CTkToplevel):
 # main frame
 
 def main():
-    node = ArmGUI()
 
     ctk.set_appearance_mode('dark')
     ctk.set_default_color_theme('blue')
@@ -113,6 +160,7 @@ def main():
     app.grid_columnconfigure(0, weight=0, minsize=300)
     app.grid_columnconfigure(1, weight=1)
 
+    
     camera_window = None
 
     # --------------------------
@@ -126,18 +174,21 @@ def main():
     left_frame.grid_rowconfigure(4, weight=1)
     
     ctk.CTkLabel(left_frame, text='ARM Mode Selection',
-                 font=('Arial', 14, 'bold')).pack(pady=(14, 6))
+                 font=('Arial', 14, 'bold')).grid(pady=(14, 6))
 
-    text_1 = ctk.CTkTextbox(left_frame, width=240, height=70)
-    text_1.pack(pady=6, padx=10)
+    text_1 = ctk.CTkTextbox(left_frame, width=240, height=80)
+    text_1.grid(row=1, column=0, pady=6, padx=10)      
     text_1.insert("0.0",
         "mode 1: Object detection\n"
         "mode 2: Joint variables\n"
         "mode 3: Coordinates\n"
+        "Manual joint movement\n"
+
     )
     text_1.configure(state="disabled")
 
     mode = ctk.IntVar(value=1)
+
 
 
     radframe = ctk.CTkFrame(left_frame)
@@ -152,6 +203,8 @@ def main():
 
     slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
     slider_frame.grid(row=0, column=0, padx=4, pady=4)
+
+
 
     # mode inputs
     entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
@@ -179,17 +232,21 @@ def main():
         s = ctk.CTkFrame(slider_frame, fg_color='transparent')
         s.pack(fill='x', padx=14, pady=3)
 
-        slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
-        slider.set(0)
-        slider.pack(side='left', fill='x', expand=True, padx=4)
-
-        ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w')
+        ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left') 
 
         ctk.CTkLabel(s, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
         ).pack(side='left', padx=(4, 2))
 
         ctk.CTkLabel(s, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
-        ).pack(side='left', padx=(2, 4))
+        ).pack(side='right', padx=(2, 4))
+
+
+
+        slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
+        slider.set(0)
+        slider.pack(side='left', fill='x', expand=True, padx=4)
+
+
 
         values = ctk.CTkLabel(s, text='0°', width=48, anchor='w')
         values.pack(side='left')
@@ -202,14 +259,14 @@ def main():
 
     def _on_slider(val, idx):
         slider_value_labels[idx].configure(text=f'{round(val, 1)}°')
-        node.set_slider_joints([round(s.get(), 1) for s in joint_sliders])
+        set_slider_joints([round(s.get(), 1) for s in joint_sliders])
 
     def reset_sliders():
         for i, s in enumerate(joint_sliders):
             s.set(0)
             slider_value_labels[i].configure(text='0°')
-        node.set_slider_joints([0.0] * 5)
-        status_label.configure(text='Sliders reset to 0°', text_color='gray')
+        set_slider_joints([0.0] * 5)
+        status_label.configure(text='Sliders reset to 0°')
     # --------------------------
     # right frame
 
@@ -218,7 +275,7 @@ def main():
 
     right_frame.grid_columnconfigure(0, weight=1)
     right_frame.grid_rowconfigure(0, weight=1)   
-    right_frame.grid_rowconfigure(1, weight=0)  
+    right_frame.grid_rowconfigure(1, weight=1)  
     right_frame.grid_rowconfigure(2, weight=0)
     right_frame.grid_rowconfigure(3, weight=0)
 
@@ -228,9 +285,9 @@ def main():
 
     def show_inputs():
         selected = mode.get()
-
         entry_1.grid_remove()
         slider_frame.grid_remove()
+
         for j in joint_entries:
             j.grid_remove()
         for c in coordinate_entries:
@@ -255,9 +312,10 @@ def main():
 
     # --------------------------
     button_frame = ctk.CTkFrame(right_frame, fg_color='transparent')
-    button_frame.grid(row=1, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
+    button_frame.grid(row=2, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
     button_frame.grid_columnconfigure(tuple(range(6)), weight=1)
     
+
     # --------------------------
     def validate(values):
         try:
@@ -298,24 +356,37 @@ def main():
                        variable=mode, value=4,
                        command=show_inputs).pack(anchor ='w', padx=10, pady=6)
 
-
+    # --------------------------
     tabview = ctk.CTkTabview(right_frame)
-    tabview.grid(row=0, column=0, sticky='nsew', padx=10, pady=(10, 4))
+    tabview.grid(row=0, column=0, sticky='nsew', padx=8, pady=(8, 4))
+
 
     tabview.add("joint positions")
     tabview.add("coordinates")
     tabview.add('slider values')
 
     
-    joint_frame = ctk.CTkScrollableFrame(tabview.tab("joint positions"), height=180)
+    joint_frame = ctk.CTkScrollableFrame(tabview.tab("joint positions"), height=80)
     joint_frame.pack(fill="both", expand=True)
  
-    coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=180)
+    coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=80)
     coordinate_frame.pack(fill="both", expand=True)
+
+    sliders_frame = ctk.CTkScrollableFrame(tabview.tab("slider values"), height=80)
+    sliders_frame.pack(fill="both", expand=True)
+
+    graph = ctk.CTkFrame(right_frame)
+    graph.grid(row = 1, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
+    graph.grid_rowconfigure(0, weight = 1)
+    graph.grid_columnconfigure(0, weight = 1)
+ 
+    ctk.CTkLabel(graph, text = 'Animation', font=('Arial', 14)).grid(pady=(14, 6))
+
 
     # --------------------------
     joint_count = [0]
     coordinate_count = [0]
+    slider_count = [0]
 
     def add_values():
         selected = mode.get()
@@ -350,14 +421,13 @@ def main():
 
 #
         elif selected == 4:
-            vals = [slider.get for slider in joint_sliders]
-            if not validate(vals):
-                status_label.configure(text='Invalid or missing values.', text_color='red')
-                return
-            ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
-
-
-
+            vals = [slider.get() for slider in joint_sliders]
+            slider_count[0] += 1
+            ctk.CTkLabel(sliders_frame,
+                         text=f"{slider_count[0]}: J1={vals[0]}, J2={vals[1]}, J3={vals[2]}, J4={vals[3]}, J5={vals[4]}"
+                         ).pack(anchor="w", pady=2)
+            status_label.configure(text="Added slider values", text_color='green')
+            
 #
         else:
             status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
@@ -377,25 +447,35 @@ def main():
                 return
             node.publish_object(obj)
             status_label.configure(text=f'Target: {obj}', text_color='green')
+      
+      #  elif selected ==  2:
+
+     #   elif selected ==  3:
+
+        elif selected ==  4:
+            for i in range (5):
+                self.posCommand[i] = self.joint_sliders[i]
+                
 
     # --------------------------
     def open_gripper():
         node.publish_gripper('open')
+        self.posCommand[5] = 0
         status_label.configure(text='Gripper opening', text_color='green')
 
     def close_gripper():
         node.publish_gripper('close')
+        self.posCommand[5] = 1
         status_label.configure(text='Gripper closing', text_color='green')
 
     def close():
-        nonlocal camera_window
+        #nonlocal camera_window
         if camera_window is not None and camera_window.winfo_exists():
             camera_window.close()
-        node.destroy_node()
         app.destroy()
  
     def open_camera():
-        nonlocal camera_window
+        #nonlocal camera_window
         if camera_window is None or not camera_window.winfo_exists():
             camera_window = CameraWindow(app)
         else:
