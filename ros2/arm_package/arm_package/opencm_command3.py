@@ -12,7 +12,6 @@ from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
 import serial
 import math
-import subprocess
 
 # this should allow us to start opencm_command before or after the joint trajectory has been sent
 # pos_deg = [154, 343, 165, 188, 157, 0] # default starting configuration
@@ -24,30 +23,15 @@ class opencmCommandNode(Node):
 	def __init__(self):
 		super().__init__('opencm_command_node')
 		
-		# Silly code that finds where ARM is (feel free to move this somewhere nicer)
-		port = "/dev/ttyACM0"
-		grep = subprocess.run("udevadm info -q property /dev/ttyACM0 | grep 'ID_MODEL_ID='", shell=True, capture_output=True, text=True)
-		if grep.returncode != 0:
-			pass # error out
-			#raise ODDException(f"No ODD Arduino found at {port}")
-
-		model_id_split = grep.stdout.strip().split("=")
-		if len(model_id_split) != 2:
-			pass # error out
-			#raise ODDException(f"udevadm or grep did something weird: {grep.stdout}")
-
-		if model_id_split[1] != "ff48":  # This means ODD is at /ttyACM0, probably
-			port = "/dev/ttyACM1"  # So ARM should be here.
-
 		# start the serial connection
 		try:
-			self.ser = serial.Serial(port, 115200, timeout=1) # this needs to be changed based on the device :(
+			self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) # this needs to be changed based on the device :(
 			#self.get_logger().info("Connected to serial /dev/ttyACM0")
 		except Exception as e:
 			self.get_logger().error(f"Serial Error: {e}")
 			raise e
 		
-		#subscribe to joint_trajectory topic
+		# subscribe to the controller topics
 		self.subscription = self.create_subscription(
 			# FollowJointTrajectory.Goal,
 			#JointTrajectory
@@ -59,6 +43,7 @@ class opencmCommandNode(Node):
 			# '/arm_controller/follow_joint_trajectory/_action/goal'
 			self.listener_callback,
 			10)
+		# publish to joint_state topic
 		self.publisher = self.create_publisher(
 			JointState,
 			'/joint_state',
