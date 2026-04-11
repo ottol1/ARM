@@ -217,18 +217,18 @@ class ArmGUI(Node, ctk.CTk):
         for i, (low, high) in enumerate(JOINT_LIMITS):
             s = ctk.CTkFrame(slider_frame, fg_color='transparent')
             s.pack(fill='x', padx=14, pady=3)
-    
+
+            ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left') 
+
+            ctk.CTkLabel(s, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+            ).pack(side='left', padx=(4, 2))
+
+            ctk.CTkLabel(s, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
+            ).pack(side='right', padx=(2, 4))
+            
             slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
             slider.set(0)
             slider.pack(side='left', fill='x', expand=True, padx=4)
-    
-            ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w')
-    
-            ctk.CTkLabel(s, text=f'{low}°', font=('Arial', 10), text_color='gray', width=36, anchor='e'
-            ).pack(side='left', padx=(4, 2))
-    
-            ctk.CTkLabel(s, text=f'{high}°', font=('Arial', 10), text_color='gray', width=36, anchor='w'
-            ).pack(side='left', padx=(2, 4))
     
             values = ctk.CTkLabel(s, text='0°', width=48, anchor='w')
             values.pack(side='left')
@@ -256,7 +256,7 @@ class ArmGUI(Node, ctk.CTk):
     
         right_frame.grid_columnconfigure(0, weight=1)
         right_frame.grid_rowconfigure(0, weight=1)   
-        right_frame.grid_rowconfigure(1, weight=0)  
+        right_frame.grid_rowconfigure(1, weight=1)  
         right_frame.grid_rowconfigure(2, weight=0)
         right_frame.grid_rowconfigure(3, weight=0)
     
@@ -293,9 +293,8 @@ class ArmGUI(Node, ctk.CTk):
     
         # --------------------------
         button_frame = ctk.CTkFrame(right_frame, fg_color='transparent')
-        button_frame.grid(row=1, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
+        button_frame.grid(row=2, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
         button_frame.grid_columnconfigure(tuple(range(6)), weight=1)
-
     
         # --------------------------
         def validate(values):
@@ -303,21 +302,6 @@ class ArmGUI(Node, ctk.CTk):
                 return all(v != '' and float(v) for v in values)
             except ValueError:
                 return False
-    
-        def save_file(selected, data: dict):
-            try:
-                with open('user_input.txt', 'w') as f:
-                    f.write(f'Mode: {selected}\n')
-                    if selected == 1:
-                        f.write(f"Object: {data['object']}\n")
-                    elif selected == 2:
-                        f.write('Joints: ' + ', '.join(str(j) for j in data['joints']) + '\n')
-                    elif selected == 3:
-                        f.write('Coordinates: ' + ', '.join(str(c) for c in data['coordinates']) + '\n')
-                status_label.configure(text='Saved to user_input.txt', text_color='green')
-            except IOError as e:
-                status_label.configure(text=f'File error: {e}', text_color='red')
-    
         # --------------------------
         # radio buttons
     
@@ -350,19 +334,20 @@ class ArmGUI(Node, ctk.CTk):
         joint_frame.pack(fill="both", expand=True)
         coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=80)
         coordinate_frame.pack(fill="both", expand=True)
-    
+        sliders_frame = ctk.CTkScrollableFrame(tabview.tab("slider values"), height=80)
+        sliders_frame.pack(fill="both", expand=True)
     
         graph = ctk.CTkFrame(right_frame)
-        graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
-        graph.grid_rowconfigure(1, weight = 1)
+        graph.grid(row = 1, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
+        graph.grid_rowconfigure(0, weight = 1)
         graph.grid_columnconfigure(0, weight = 1)
-        ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
+        ctk.CTkLabel(graph, text = 'Animation', font=('Arial', 14)).grid(pady=(14, 6))
     
     
         # --------------------------
         joint_count = [0]
         coordinate_count = [0]
-    
+        slider_count = [0]
         def add_values():
             selected = mode.get()
             
@@ -395,17 +380,15 @@ class ArmGUI(Node, ctk.CTk):
                 for c in coordinate_entries: c.delete(0, 'end')
     
             elif selected == 4:
-                vals = [slider.get for slider in self.joint_sliders]
-                if not validate(vals):
-                    status_label.configure(text='Invalid or missing values.', text_color='red')
-                    return
-                ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
-    
-    
-    
-            else:
-                status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
-    
+                vals = [round(slider.get(),2) for slider in joint_sliders]
+                slider_count[0] += 1
+                ctk.CTkLabel(sliders_frame,
+                         text=f"{slider_count[0]}: J1={vals[0]}, J2={vals[1]}, J3={vals[2]}, J4={vals[3]}, J5={vals[4]}"
+                         ).pack(anchor="w", pady=2)
+            status_label.configure(text="Added slider values", text_color='green')
+            
+        else:
+            status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
         ctk.CTkButton(add_frame, text='Add Values', command=add_values).pack(pady=6, padx=10, fill='x')
     
         # --------------------------
@@ -441,13 +424,6 @@ class ArmGUI(Node, ctk.CTk):
             #node.publish_gripper('close')
             self.posCommand[5] = 1.0
             status_label.configure(text='Gripper closing', text_color='green')
-    
-        def close():
-            #nonlocal camera_window
-            if camera_window is not None and camera_window.winfo_exists():
-                camera_window.close()
-            super().destroy_node()
-            self.app.destroy()
         
         def open_camera():
             #nonlocal camera_window
@@ -462,9 +438,8 @@ class ArmGUI(Node, ctk.CTk):
             ('Run',           run,          {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
             ('Open Gripper',  open_gripper, {}),
             ('Close Gripper', close_gripper,{}),
-            ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
+            ('Reset Sliders', reset_sliders,{}),
             ('Camera',        open_camera,  {}),
-            ('Exit',          close,        {'fg_color': '#6b1f1f', 'hover_color': '#4a1515'}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
