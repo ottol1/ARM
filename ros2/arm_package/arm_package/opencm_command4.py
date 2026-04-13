@@ -40,13 +40,8 @@ class opencmCommandNode(Node):
 			'/joint_state',
 			10)
 		
-		self.prev_posCommand_int = [2048, 1024, 2048, 614, 614, 0] # initial positions
-		self.joint_positions_int = [2048, 1024, 2048, 614, 614, 0]
 		self.posCommand_int = [2048, 1024, 2048, 614, 614, 0]
 		self.velCommand_int = [131, 131, 131, 273, 273, 1297]
-		# self.joint_tolerance = [11, 3, 102] # joint tolerance of 1 degree (in steps respective to motor) and 0.1 N before processing next command
-		self.prev_posCommand_rad = [0.0]*6
-		self.prev_velCommand_rad = [0.0]*6
 		self.posCommand_rad = [0.0]*6
 		self.velCommand_rad = [0.0]*6
 
@@ -71,22 +66,6 @@ class opencmCommandNode(Node):
 				self.posCommand_rad[i] = arm_posCommand_rad[i]
 				self.velCommand_rad[i] = arm_velCommand_rad[i]
 		
-
-	def vector_compare(self, a, b):
-		# Check if the values are within 5 degrees each other
-		# if it is not true for a single value, return false
-		# if it is true for every value, return true
-		for i in range(6):
-			if i < 3:
-				if (a[i] > (b[i] - self.joint_tolerance[0])) and (a[i] < (b[i] + self.joint_tolerance[0])):
-					return True
-			elif i < 5:
-				if (a[i] > (b[i] - self.joint_tolerance[1])) and (a[i] < (b[i] + self.joint_tolerance[1])):
-					return True
-			elif i == 5:
-				if (a[i] > (b[i] - self.joint_tolerance[2])) and (a[i] < (b[i] + self.joint_tolerance[2])):
-					return True
-		return False
 
 	# convert wrist attitude and rotation to joint
 	def wrist_math(self):
@@ -146,22 +125,34 @@ class opencmCommandNode(Node):
 				self.velCommand_int[i] = int((abs(self.velCommand_rad[i])*60/(2*math.pi))/0.11) + 1 # 0.110 rev/min per pulse | 0 - 1023 pulses
 			elif i == 5:
 				# force sensor works a bit differently
-				if self.posCommand_rad[5] == 1:
+				if self.posCommand_rad[5] != 0:
 					self.posCommand_int[5] = 1015 # up to ~1 N for now
 				else:
 					self.posCommand_int[5] = 0 # just open for now
 				self.velCommand_int[5] = int((abs(self.velCommand_rad[5])*60/(2*math.pi))/0.229) + 1025 # 0.229 rev/min per pulse | 1025 - 2047 pulses for reversed direction
+
+	def int_to_rad(self, joint_data):
+		joint_positions_rad = [0.0]*6
+		joint_velocities_rad = [0.0]*6
+		for i in range(6):
+			if i < 3:
+				joint_positions_rad[i] = float(joint_data[i]*2*math.pi/4095 - math.pi)
+				joint_velocities_rad[i] = float(joint_data[i+6]*(2*math.pi*0.229)/60)
+			elif i < 5:
+				joint_positions_rad[i] = float(joint_data[i]*((2*math.pi)*(300/360))/1023)
+				joint_velocities_rad[i] = float(joint_data[i+6]*(2*math.pi*0.11)/60)
+			elif i == 5:
+				joint_positions_rad[i] = float(joint_data[i])/1023.0
+				joint_velocities_rad[i] = float(joint_data[i+6](2*math.pi*0.11)/60)
+		
+		return joint_positions_rad, joint_velocities_rad
 
 
 	def listener_callback(self):
 		
 		joint_states = JointState()
 		joint_positions_rad = [0.0]*6
-		# joint_velocities_rad = [0.0]*6
-
-
-		# check if the current joint positions match the previous joint command
-		# if self.vector_compare(self.prev_posCommand_int, self.joint_positions_int): # - after we get the UI working, we need to double back to see if this is needed
+		joint_velocities_rad = [0.0]*6
 
 		self.wrist_math()
 			
@@ -193,23 +184,14 @@ class opencmCommandNode(Node):
 		
 		if joint_data != ['']:
 			joint_states.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
-		
-			for i in range(6):
-				self.joint_positions_int[i] = int(float(joint_data[i]))
-				if i < 3:
-					joint_positions_rad[i] = float(joint_data[i])*math.pi/4095.0
-				# joint_velocities[i] = float(jointData[i+6]) # new system will only recieve positions
-				elif i < 5:
-					joint_positions_rad[i] = float(joint_data[i])*(math.pi-0.5235987756)/1023.0
-				elif i == 5:
-					joint_positions_rad[i] = float(joint_data[i])/1023.0
+
+			joint_positions_rad, joint_velocities_rad = self.int_to_rad(joint_data)
+
 			joint_states.position = joint_positions_rad
-			# joint_states.velocity = joint_velocities
+			joint_states.velocity = joint_velocities_rad
 			self.publisher.publish(joint_states)
 			# print(self.joint_positions_int)
 
-		self.prev_posCommand_rad = self.posCommand_rad
-		self.prev_velCommand_rad = self.velCommand_rad
 
 	def destroy_node(self):
 		self.ser.close()
