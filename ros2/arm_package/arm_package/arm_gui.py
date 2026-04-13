@@ -1,10 +1,14 @@
 # Team: Articulated Removable Manipulator (ARM), 2025-2026
 
+# UI
 import threading
 import customtkinter as ctk
 import math
+
 #from Run import MoveARM		#run button file
 #from camera_window import CameraWindow
+
+# ROS
 import rclpy
 from rclpy.node import Node
 from control_msgs.msg import JointTrajectoryControllerState
@@ -21,6 +25,7 @@ class ArmGUI(Node, ctk.CTk):
         self.velCommand=[10.0]*6
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
+        self.switch = False
 
  
 #	publish to the arm_controller/controller_state topic
@@ -51,6 +56,12 @@ class ArmGUI(Node, ctk.CTk):
 
     def arm_command_publisher(self):
         command = JointTrajectoryControllerState()
+
+        if self.switch == True:
+            for i in range(6):
+                self.velCommand[i] = float(self.vel_sliders[0].get())
+        elif self.switch == False:
+            self.velCommand = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
 
         # REQUIRED: joint names
         command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
@@ -182,9 +193,9 @@ class ArmGUI(Node, ctk.CTk):
             s = ctk.CTkFrame(slider_frame, fg_color='transparent')
             s.pack(fill='x', padx=14, pady=3)
             ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
-            ctk.CTkLabel(s, text=f'{round(low, 2)} rad', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+            ctk.CTkLabel(s, text='-pi', font=('Arial', 10), text_color='gray', width=36, anchor='e'
             ).pack(side='left', padx=(4, 2))
-            ctk.CTkLabel(s, text=f'{round(high, 2)} rad', font=('Arial', 10), text_color='gray', width=36, anchor='w'
+            ctk.CTkLabel(s, text="pi", font=('Arial', 10), text_color='gray', width=36, anchor='w'
             ).pack(side='right', padx=(2, 4))
 
             slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
@@ -370,12 +381,15 @@ class ArmGUI(Node, ctk.CTk):
         # --------------------------
         # velocity
         VEL_LIMITS = [(0, 100)] * 5   # TODO: set real per-joint limits
-        vel_sliders       = []
+        self.vel_sliders       = []
         vel_value_labels = []
         def vel():
+        
             if switch_var.get() == 'on':
+                self.switch = True
                 v.pack(fill='x', padx=10, pady=(0, 6))
             else:
+                self.switch = False
                 v.pack_forget()
     
             
@@ -394,7 +408,7 @@ class ArmGUI(Node, ctk.CTk):
         vel_value = ctk.CTkLabel(v, text='0', width=48, anchor='w')
         vel_value.pack(side='left')
         vel_value_labels.append(vel_value)
-        vel_sliders.append(vel_slider)
+        self.vel_sliders.append(vel_slider)
         switch_var = ctk.StringVar(value="off")
         ctk.CTkSwitch(vel_frame, text='ARM Velocity', command=vel, variable=switch_var, onvalue="on", offvalue="off").pack(pady=6, padx=10, fill='x')
 
