@@ -169,12 +169,12 @@ class ArmGUI(Node, ctk.CTk):
             j.pack(pady=5)
             j.pack_forget()
             joint_entries.append(j)
-        coordinate_entries = []
+        self.coordinate_entries = []
         for i, lbl in enumerate(("X", "Y", "Z")):
             c = ctk.CTkEntry(inframe, placeholder_text=lbl)
             c.pack(pady=5)
             c.pack_forget()
-            coordinate_entries.append(c)
+            self.coordinate_entries.append(c)
         JOINT_LIMITS = [(-math.pi, math.pi)] * 5   # TODO: set real per-joint limits
         self.joint_sliders       = []
         slider_value_labels = []
@@ -225,24 +225,24 @@ class ArmGUI(Node, ctk.CTk):
     
         def show_inputs():
             selected = mode.get()
-            entry_1.grid_remove()
-            slider_frame.grid_remove()
+            entry_1.pack_forget()
+            slider_frame.pack_forget()
     
             for j in joint_entries:
-                j.grid_remove()
+                j.pack_forget()
             for c in self.coordinate_entries:
-                c.grid_remove()
+                c.pack_forget()
     
             if selected == 1:
-                entry_1.grid()
+                entry_1.pack()
             elif selected == 2:
                 for j in joint_entries:
-                    j.grid()
+                    j.pack()
             elif selected == 3:
                 for c in self.coordinate_entries:
-                    c.grid()
+                    c.pack()
             elif selected == 4:
-                slider_frame.grid()
+                slider_frame.pack(fill='x', padx=4, pady=4)
 
     
     
@@ -454,12 +454,6 @@ class ArmGUI(Node, ctk.CTk):
             self.posCommand[5] = 1.0
             status_label.configure(text='Gripper closing', text_color='green')
     
-        def close():
-            #nonlocal camera_window
-            if camera_window is not None and camera_window.winfo_exists():
-                camera_window.close()
-            super().destroy_node()
-            self.app.destroy()
         
         def open_camera():
             #nonlocal camera_window
@@ -476,7 +470,6 @@ class ArmGUI(Node, ctk.CTk):
             ('Close Gripper', close_gripper,{}),
             ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
             ('Camera',        open_camera,  {}),
-            ('Exit',          close,        {'fg_color': '#6b1f1f', 'hover_color': '#4a1515'}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
