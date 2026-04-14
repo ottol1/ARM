@@ -44,6 +44,8 @@ class opencmCommandNode(Node):
 		self.velCommand_int = [131, 131, 131, 273, 273, 1297]
 		self.posCommand_rad = [0.0]*6
 		self.velCommand_rad = [0.0]*6
+		self.prev_posCommand_rad = [0.0]*6
+		self.prev_velCommand_rad = [0.0]*6
 
 		self.timer = self.create_timer(0.02, self.listener_callback) # needed to spin the node
 		
@@ -52,8 +54,8 @@ class opencmCommandNode(Node):
 		# check for new gripper messages
 		if msg.desired:
 			print(f"Gripper msg recieved: {msg.desired}")
-			self.posCommand_rad[5] = list(msg.desired.positions)
-			self.velCommand_rad[5] = list(msg.desired.velocities)
+			self.posCommand_rad[5] = list(msg.desired.positions)[0]
+			self.velCommand_rad[5] = list(msg.desired.velocities)[0]
 			
 
 	def arm_listener(self, msg):
@@ -65,6 +67,7 @@ class opencmCommandNode(Node):
 			for i in range(5):
 				self.posCommand_rad[i] = arm_posCommand_rad[i]
 				self.velCommand_rad[i] = arm_velCommand_rad[i]
+			self.wrist_math()
 		
 
 	# convert wrist attitude and rotation to joint
@@ -75,36 +78,11 @@ class opencmCommandNode(Node):
 		wristAtt_vel = self.velCommand_rad[3]
 		wristRot_vel = self.velCommand_rad[4]
 
-		servo4_pos = 0.0
-		servo5_pos = 0.0
-		servo4_vel = 0.0
-		servo5_vel = 0.0
+		servo4_pos = -wristAtt_pos - wristRot_pos
+		servo5_pos = wristAtt_pos - wristRot_pos
 
-		if wristAtt_pos > self.prev_posCommand_rad[3]:  # if wrist angle is increasing
-			servo4_pos += wristAtt_pos - self.prev_posCommand_rad[3]
-			servo5_pos -= wristAtt_pos - self.prev_posCommand_rad[3]
-		if wristAtt_pos < self.prev_posCommand_rad[3]:  # if wrist angle is decreasing
-			servo4_pos -= self.prev_posCommand_rad[3] - wristAtt_pos
-			servo5_pos += self.prev_posCommand_rad[3] - wristAtt_pos
-		if wristRot_pos > self.prev_posCommand_rad[4]:  # if frame angle is increasing
-			servo4_pos -= wristRot_pos - self.prev_posCommand_rad[4]
-			servo5_pos -= wristRot_pos - self.prev_posCommand_rad[4]
-		if wristRot_pos < self.prev_posCommand_rad[4]:  # if frame angle is decreasing
-			servo4_pos += self.prev_posCommand_rad[4] - wristRot_pos
-			servo5_pos += self.prev_posCommand_rad[4] - wristRot_pos
-
-		if wristAtt_vel > self.prev_velCommand_rad[3]:  # if wrist angle is increasing
-			servo4_vel += wristAtt_vel - self.prev_velCommand_rad[3]
-			servo5_vel -= wristAtt_vel - self.prev_velCommand_rad[3]
-		if wristAtt_vel < self.prev_velCommand_rad[3]:  # if wrist angle is decreasing
-			servo4_vel -= self.prev_velCommand_rad[3] - wristAtt_vel
-			servo5_vel += self.prev_velCommand_rad[3] - wristAtt_vel
-		if wristRot_vel > self.prev_velCommand_rad[4]:  # if frame angle is increasing
-			servo4_vel -= wristRot_vel - self.prev_velCommand_rad[4]
-			servo5_vel -= wristRot_vel - self.prev_velCommand_rad[4]
-		if wristRot_vel < self.prev_velCommand_rad[4]:  # if frame angle is decreasing
-			servo4_vel += self.prev_velCommand_rad[4] - wristRot_vel
-			servo5_vel += self.prev_velCommand_rad[4] - wristRot_vel
+		servo4_vel = (-wristAtt_vel - wristRot_vel)/2
+		servo5_vel = (wristAtt_vel + wristRot_vel)/2
 
 		self.posCommand_rad[3] = servo4_pos
 		self.posCommand_rad[4] = servo5_pos
@@ -126,7 +104,7 @@ class opencmCommandNode(Node):
 			elif i == 5:
 				# force sensor works a bit differently
 				if self.posCommand_rad[5] != 0:
-					self.posCommand_int[5] = 1015 # up to ~1 N for now
+					self.posCommand_int[5] = 1022 # up to ~1 N for now
 				else:
 					self.posCommand_int[5] = 0 # just open for now
 				self.velCommand_int[5] = int((abs(self.velCommand_rad[5])*60/(2*math.pi))/0.229) + 1025 # 0.229 rev/min per pulse | 1025 - 2047 pulses for reversed direction
@@ -136,14 +114,14 @@ class opencmCommandNode(Node):
 		joint_velocities_rad = [0.0]*6
 		for i in range(6):
 			if i < 3:
-				joint_positions_rad[i] = float(joint_data[i]*2*math.pi/4095 - math.pi)
-				joint_velocities_rad[i] = float(joint_data[i+6]*(2*math.pi*0.229)/60)
+				joint_positions_rad[i] = float(joint_data[i])*2*math.pi/4095 - math.pi
+				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.229)/60
 			elif i < 5:
-				joint_positions_rad[i] = float(joint_data[i]*((2*math.pi)*(300/360))/1023)
-				joint_velocities_rad[i] = float(joint_data[i+6]*(2*math.pi*0.11)/60)
+				joint_positions_rad[i] = float(joint_data[i])*((2*math.pi)*(300/360))/1023
+				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
 			elif i == 5:
 				joint_positions_rad[i] = float(joint_data[i])/1023.0
-				joint_velocities_rad[i] = float(joint_data[i+6](2*math.pi*0.11)/60)
+				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
 		
 		return joint_positions_rad, joint_velocities_rad
 
@@ -154,7 +132,6 @@ class opencmCommandNode(Node):
 		joint_positions_rad = [0.0]*6
 		joint_velocities_rad = [0.0]*6
 
-		self.wrist_math()
 			
 		#convert to integers, and save to self variables
 		self.rad_to_int()
@@ -191,6 +168,9 @@ class opencmCommandNode(Node):
 			joint_states.velocity = joint_velocities_rad
 			self.publisher.publish(joint_states)
 			# print(self.joint_positions_int)
+
+			self.prev_posCommand_rad = self.posCommand_rad
+			self.prev_velCommand_rad = self.velCommand_rad
 
 
 	def destroy_node(self):

@@ -63,10 +63,10 @@ class ArmGUI(Node, ctk.CTk):
         elif self.switch == False:
             self.velCommand = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
 
-        # REQUIRED: joint names
+        # joint names
         command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
 
-        # REQUIRED: desired, actual, error must be JointTrajectoryPoint
+        # desired, actual, error must be JointTrajectoryPoint
         desired = JointTrajectoryPoint()
         desired.positions = [float(x) for x in self.posCommand[:5]]
         desired.velocities = [float(x) for x in self.velCommand[:5]]
@@ -93,6 +93,42 @@ class ArmGUI(Node, ctk.CTk):
         command.error = error
 
         self.arm_publisher.publish(command)
+
+
+        grip_command = JointTrajectoryControllerState()
+
+        # joint names
+        grip_command.joint_names = ['gripper']
+
+        # desired, actual, error must be JointTrajectoryPoint
+        grip_desired = JointTrajectoryPoint()
+        grip_desired.positions = [float(self.posCommand[5])]
+        grip_desired.velocities = [float(self.velCommand[5]*40)]
+        grip_desired.accelerations = []
+        grip_desired.effort = []
+        grip_desired.time_from_start = Duration(sec=0, nanosec=0)
+
+        grip_actual = JointTrajectoryPoint()
+        grip_actual.positions = [float(self.posActual[5])]
+        grip_actual.velocities = [float(self.velActual[5])]
+        grip_actual.accelerations = []
+        grip_actual.effort = []
+        grip_actual.time_from_start = Duration(sec=0, nanosec=0)
+
+        grip_error = JointTrajectoryPoint()
+        grip_error.positions = [0.0]*5
+        grip_error.velocities = [0.0]*5
+        grip_error.accelerations = []
+        grip_error.effort = []
+        grip_error.time_from_start = Duration(sec=0, nanosec=0)
+
+        grip_command.desired = grip_desired
+        grip_command.actual = grip_actual
+        grip_command.error = grip_error
+
+        self.gripper_publisher.publish(grip_command)
+
+        
     
     def arm_state_subscriber(self, msg):
         self.posActual = list(msg.position)
@@ -427,9 +463,9 @@ class ArmGUI(Node, ctk.CTk):
                     return
                 # node.publish_object(obj)
                 status_label.configure(text=f'Target: {obj}', text_color='green')
-            #  elif selected ==  2:
+                #  elif selected ==  2:
 
-            #   elif selected ==  3:
+                #   elif selected ==  3:
                 # xyz = [0.0]*3
                 # for i in range(3):
                 #     xyz[i] = float(self.coordinate_entries.get())
