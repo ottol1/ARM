@@ -187,6 +187,25 @@ class visionMotionNode(Node):
             print(f"Bounding box center y:\n{msg.detections[1].bbox.center.position.y}\n")
         else:
             print("No message detected\n")
+
+        # pipeline = rs.pipeline()  # Create a pipeline
+        # pipeline.start()  # Start streaming
+        #
+        # try:
+        #     while True:
+        #         frames = pipeline.wait_for_frames()
+        #         depth_frame = frames.get_depth_frame()
+        #         if not depth_frame:
+        #             continue
+        #
+        #         x, y = msg.detections[1].bbox.center.position.x, msg.detections[1].bbox.center.position.y
+        #         dist = depth_frame.get_distance(x, y)
+        #         if (dist < 1.2) & (dist > 0.064):
+        #             print(f"The camera is facing an object {dist:.3f} meters away", end="\r")
+        #
+        # finally:
+        #     pipeline.stop()  # Stop streaming
+
         # joint_states = JointState()
         # joint_positions_rad = [0.0] * 6
         # # joint_velocities_rad = [0.0]*6

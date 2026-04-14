@@ -222,7 +222,8 @@ class ArmGUI(Node, ctk.CTk):
             c.pack(pady=5)
             c.pack_forget()
             self.coordinate_entries.append(c)
-        JOINT_LIMITS = [(-math.pi, math.pi)] * 5   # TODO: set real per-joint limits
+        JOINT_LIMITS = [(-math.pi/2, math.pi/2)] * 5   # TODO: set real per-joint limits
+        JOINT_LIMITS[0] = (-math.pi, math.pi)
         self.joint_sliders       = []
         slider_value_labels = []
         for i, (low, high) in enumerate(JOINT_LIMITS):
