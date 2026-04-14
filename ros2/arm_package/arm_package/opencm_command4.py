@@ -8,20 +8,34 @@ from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
 import serial
 import math
+import subprocess
 
 
 class opencmCommandNode(Node):
 	def __init__(self):
 		super().__init__('opencm_command_node')
-		
+
+		port = "/dev/ttyACM0"
+		grep = subprocess.run("udevadm info -q property /dev/ttyACM0 | grep 'ID_MODEL_ID='", shell=True,
+							  capture_output=True, text=True)
+		if grep.returncode != 0:
+			self.get_logger().error(f"No ARM found at {port}")
+
+		model_id_split = grep.stdout.strip().split("=")
+		if len(model_id_split) != 2:
+			self.get_logger().error(f"udevadm or grep did something weird: {grep.stdout}")
+
+		if model_id_split[1] != "ff48":  # This means ODD is at /ttyACM0, probably
+			port = "/dev/ttyACM1"  # So ARM should be here.
+
 		# start the serial connection
 		try:
-			self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) # this needs to be changed based on the device :( - austin has this that we can try using
-			#self.get_logger().info("Connected to serial /dev/ttyACM0")
+			self.ser = serial.Serial(port, 115200, timeout=1) # this needs to be changed based on the device :( - austin has this that we can try using
+			self.get_logger().info(f"Connected to ARM at {port}")
 		except Exception as e:
 			self.get_logger().error(f"Serial Error: {e}")
 			raise e
-		
+
 		# subscribe to the controller topics
 		self.arm_subscription = self.create_subscription(
 			JointTrajectoryControllerState,
