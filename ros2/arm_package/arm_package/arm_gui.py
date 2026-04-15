@@ -21,11 +21,12 @@ class ArmGUI(Node, ctk.CTk):
         super().__init__('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
-        self.posCommand=[3.14, 3.14, 3.14, 3.14, 3.14, 0.0]
+        self.posCommand=[0.0]*6
         self.velCommand=[10.0]*6
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
         self.switch = False
+        self.posCommand_list = [0.0]*5
 
  
 #	publish to the arm_controller/controller_state topic
@@ -378,7 +379,9 @@ class ArmGUI(Node, ctk.CTk):
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing joint values.', text_color='red')
                     return
-    
+
+                self.posCommand_list.append([vals]) # WE NEED TO CHANGE THIS LATER, this is only so that we can do some demonstrations a bit faster
+
                 joint_count[0] += 1
     
                 ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
@@ -386,8 +389,7 @@ class ArmGUI(Node, ctk.CTk):
                 status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}",text_color='green')
                 for j in joint_entries: j.delete(0, 'end')
 
-                for i in range(5):
-                    self.posCommand[i] = vals[i] # WE NEED TO CHANGE THIS LATER, this is only so that we can do some demonstrations a bit faster
+                
             
             elif selected == 3:
                 vals = [c.get() for c in self.coordinate_entries]
@@ -453,10 +455,18 @@ class ArmGUI(Node, ctk.CTk):
         ctk.CTkSwitch(vel_frame, text='ARM Velocity', command=vel, variable=switch_var, onvalue="on", offvalue="off").pack(pady=6, padx=10, fill='x')
 
 
+        def vect_compare(posCommand, posActual):
+            for i in range(len(posCommand)):
+                if (posActual[i] > (posCommand[i] + 1)) or (posActual[i] < (posCommand[i] - 1)):
+                    return False
+            
+            return True
+
 
             # --------------------------
             # run
-    
+
+
         def run():
             selected = mode.get()
     
@@ -466,8 +476,12 @@ class ArmGUI(Node, ctk.CTk):
                     status_label.configure(text='No object entered', text_color='red')
                     return
                 status_label.configure(text=f'Target: {obj}', text_color='green')
+            
             elif selected ==  2:
-                self.arm_command_publisher()
+                for i in range(len(self.posCommand_list)):
+                    while vect_compare(self.posCommand, self.posActual[i]) == False:
+                        self.posCommand = self.posCommand_list[i]
+                        self.arm_command_publisher()
                 
                 #   elif selected ==  3:
                 # xyz = [0.0]*3
