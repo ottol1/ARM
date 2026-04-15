@@ -67,7 +67,7 @@ class opencmCommandNode(Node):
 	def gripper_listener(self, msg):
 		# check for new gripper messages
 		if msg.desired:
-			print(f"Gripper msg recieved: {msg.desired}")
+			print(f"Gripper msg received: {msg.desired}")
 			self.posCommand_rad[5] = list(msg.desired.positions)[0]
 			self.velCommand_rad[5] = list(msg.desired.velocities)[0]
 			
@@ -75,7 +75,7 @@ class opencmCommandNode(Node):
 	def arm_listener(self, msg):
 		# check for new arm messages
 		if msg.desired:
-			print(f"Arm msg recieved: {msg.desired}")
+			print(f"Arm msg received: {msg.desired}")
 			arm_posCommand_rad = list(msg.desired.positions)
 			arm_velCommand_rad = list(msg.desired.velocities)
 			for i in range(5):
@@ -165,13 +165,13 @@ class opencmCommandNode(Node):
 		
 		
 		try:
-			#self.get_logger().info("Waiting to recieve joint data")
+			#self.get_logger().info("Waiting to receive joint data")
 			joint_data = self.ser.readline().decode('utf-8').rstrip().split(',') # convert utf-8 status message into a vector
-			#self.get_logger().info(f"Recieved Data: {jointData}")
+			#self.get_logger().info(f"Received Data: {jointData}")
 			print(f"Feedback: {joint_data}")
 		
 		except Exception as e:
-			self.get_logger().error("Failed to recieve joint data: {e}")
+			self.get_logger().error("Failed to receive joint data: {e}")
 		
 		if joint_data != ['']:
 			joint_states.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
