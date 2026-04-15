@@ -5,8 +5,6 @@ import threading
 import customtkinter as ctk
 import math
 
-#from Run import MoveARM		#run button file
-#from camera_window import CameraWindow
 
 # ROS
 import rclpy
