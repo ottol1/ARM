@@ -21,7 +21,7 @@ class ArmGUI(Node, ctk.CTk):
         super().__init__('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
-        self.posCommand=[180.0, 180.0, 180.0, 180.0, 180.0, 0.0]
+        self.posCommand=[3.14, 3.14, 3.14, 3.14, 3.14, 0.0]
         self.velCommand=[10.0]*6
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
@@ -61,7 +61,7 @@ class ArmGUI(Node, ctk.CTk):
             for i in range(6):
                 self.velCommand[i] = float(self.vel_sliders[0].get())
         elif self.switch == False:
-            self.velCommand = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+            self.velCommand=[10.0]*6
 
         # joint names
         command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
@@ -385,6 +385,9 @@ class ArmGUI(Node, ctk.CTk):
     
                 status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}",text_color='green')
                 for j in joint_entries: j.delete(0, 'end')
+
+                for i in range(5):
+                    self.posCommand[i] = vals[i] # WE NEED TO CHANGE THIS LATER, this is only so that we can do some demonstrations a bit faster
             
             elif selected == 3:
                 vals = [c.get() for c in self.coordinate_entries]
@@ -462,10 +465,10 @@ class ArmGUI(Node, ctk.CTk):
                 if not obj:
                     status_label.configure(text='No object entered', text_color='red')
                     return
-                # node.publish_object(obj)
                 status_label.configure(text=f'Target: {obj}', text_color='green')
-                #  elif selected ==  2:
-
+            elif selected ==  2:
+                self.arm_command_publisher()
+                
                 #   elif selected ==  3:
                 # xyz = [0.0]*3
                 # for i in range(3):
