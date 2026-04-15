@@ -92,8 +92,8 @@ class opencmCommandNode(Node):
 		wristAtt_vel = self.velCommand_rad[3]
 		wristRot_vel = self.velCommand_rad[4]
 
-		servo4_pos = -wristAtt_pos - wristRot_pos
-		servo5_pos = wristAtt_pos - wristRot_pos
+		servo4_pos = wristAtt_pos - wristRot_pos
+		servo5_pos = -wristAtt_pos - wristRot_pos
 
 		servo4_vel = (-wristAtt_vel - wristRot_vel)/2
 		servo5_vel = (wristAtt_vel + wristRot_vel)/2
