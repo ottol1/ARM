@@ -480,7 +480,8 @@ class ArmGUI(Node, ctk.CTk):
             elif selected ==  2:
                 for i in range(len(self.posCommand_list)):
                     while vect_compare(self.posCommand, self.posActual[i]) == False:
-                        self.posCommand = self.posCommand_list[i]
+                        for j in range(5):
+                            self.posCommand[i] = self.posCommand_list[i][j]
                         self.arm_command_publisher()
                 
                 #   elif selected ==  3:
