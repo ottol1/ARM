@@ -20,7 +20,7 @@ class ArmGUI(Node, ctk.CTk):
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
         self.posCommand=[0.0]*6
-        self.velCommand=[10.0]*6
+        self.velCommand=[0.2]*6
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
         self.switch = False
@@ -60,7 +60,7 @@ class ArmGUI(Node, ctk.CTk):
             for i in range(6):
                 self.velCommand[i] = float(self.vel_sliders[0].get())
         elif self.switch == False:
-            self.velCommand=[10.0]*6
+            self.velCommand=[0.2]*6
 
         # joint names
         command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
