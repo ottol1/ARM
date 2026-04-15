@@ -9,10 +9,13 @@ import rclpy
 from rclpy.node import Node
 from control_msgs.msg import JointTrajectoryControllerState
 from sensor_msgs.msg import JointState
+from sensor_msgs.msg import Image as msg_Image
 from vision_msgs.msg import Detection2DArray
 from vision_msgs.msg import BoundingBox2D
 import serial
 import pyrealsense2 as rs
+# import numpy as np
+# import PIL
 import math
 import subprocess
 
@@ -132,31 +135,6 @@ class visionMotionNode(Node):
     #     servo4_vel = 0.0
     #     servo5_vel = 0.0
     #
-    #     if wristAtt_pos > self.prev_posCommand_rad[3]:  # if wrist angle is increasing
-    #         servo4_pos += wristAtt_pos - self.prev_posCommand_rad[3]
-    #         servo5_pos -= wristAtt_pos - self.prev_posCommand_rad[3]
-    #     if wristAtt_pos < self.prev_posCommand_rad[3]:  # if wrist angle is decreasing
-    #         servo4_pos -= self.prev_posCommand_rad[3] - wristAtt_pos
-    #         servo5_pos += self.prev_posCommand_rad[3] - wristAtt_pos
-    #     if wristRot_pos > self.prev_posCommand_rad[4]:  # if frame angle is increasing
-    #         servo4_pos -= wristRot_pos - self.prev_posCommand_rad[4]
-    #         servo5_pos -= wristRot_pos - self.prev_posCommand_rad[4]
-    #     if wristRot_pos < self.prev_posCommand_rad[4]:  # if frame angle is decreasing
-    #         servo4_pos += self.prev_posCommand_rad[4] - wristRot_pos
-    #         servo5_pos += self.prev_posCommand_rad[4] - wristRot_pos
-    #
-    #     if wristAtt_vel > self.prev_velCommand_rad[3]:  # if wrist angle is increasing
-    #         servo4_vel += wristAtt_vel - self.prev_velCommand_rad[3]
-    #         servo5_vel -= wristAtt_vel - self.prev_velCommand_rad[3]
-    #     if wristAtt_vel < self.prev_velCommand_rad[3]:  # if wrist angle is decreasing
-    #         servo4_vel -= self.prev_velCommand_rad[3] - wristAtt_vel
-    #         servo5_vel += self.prev_velCommand_rad[3] - wristAtt_vel
-    #     if wristRot_vel > self.prev_velCommand_rad[4]:  # if frame angle is increasing
-    #         servo4_vel -= wristRot_vel - self.prev_velCommand_rad[4]
-    #         servo5_vel -= wristRot_vel - self.prev_velCommand_rad[4]
-    #     if wristRot_vel < self.prev_velCommand_rad[4]:  # if frame angle is decreasing
-    #         servo4_vel += self.prev_velCommand_rad[4] - wristRot_vel
-    #         servo5_vel += self.prev_velCommand_rad[4] - wristRot_vel
     #
     #     self.posCommand_rad[3] = servo4_pos
     #     self.posCommand_rad[4] = servo5_pos
@@ -185,26 +163,80 @@ class visionMotionNode(Node):
         if msg.detections:
             print(f"Bounding box center x:\n{msg.detections[1].bbox.center.position.x}")
             print(f"Bounding box center y:\n{msg.detections[1].bbox.center.position.y}\n")
+
         else:
             print("No message detected\n")
 
-        # pipeline = rs.pipeline()  # Create a pipeline
-        # pipeline.start()  # Start streaming
+
+        # W = 848
+        # H = 480
+
+        # config = rs.config()
+        # config.enable_stream(rs.stream.color, W, H, rs.format.bgr8, 30)
+        # config.enable_stream(rs.stream.depth, W, H, rs.format.z16, 30)
         #
-        # try:
-        #     while True:
-        #         frames = pipeline.wait_for_frames()
-        #         depth_frame = frames.get_depth_frame()
-        #         if not depth_frame:
-        #             continue
+        # pipeline = rs.pipeline()
+        # profile = pipeline.start(config)
         #
-        #         x, y = msg.detections[1].bbox.center.position.x, msg.detections[1].bbox.center.position.y
-        #         dist = depth_frame.get_distance(x, y)
-        #         if (dist < 1.2) & (dist > 0.064):
-        #             print(f"The camera is facing an object {dist:.3f} meters away", end="\r")
+        # align_to = rs.stream.color
+        # align = rs.align(align_to)
         #
-        # finally:
-        #     pipeline.stop()  # Stop streaming
+        # while True:
+        #     frames = pipeline.wait_for_frames()
+        #
+        #     aligned_frames = align.process(frames)
+        #     color_frame = aligned_frames.get_color_frame()
+        #     depth_frame = aligned_frames.get_depth_frame()
+        #     if not color_frame:
+        #         continue
+
+            # color_image = np.asanyarray(color_frame.get_data())
+            # depth_image = np.asanyarray(depth_frame.get_data())
+            # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.08), cv2.COLORMAP_JET)
+
+            # results = model(color_image)
+
+        #
+            # x, y = int(msg.detections[1].bbox.center.position.x), int(msg.detections[1].bbox.center.position.y)
+            # dist = depth_frame.get_distance(x, y)
+            # if (dist < 1.2) & (dist > 0.064):
+            #     print(f"The camera is facing an object {dist:.3f} meters away", end="\r")
+
+        # # From ODD: Following function was written by Gemini
+        # def ros2_image_to_pil(ros_image_msg):
+        #     """
+        #     Converts a ROS2 sensor_msgs/Image to a PIL Image using only Pillow.
+        #
+        #     Args:
+        #         ros_image_msg: The uncompressed ROS2 image message.
+        #
+        #     Returns:
+        #         PIL.Image: The converted Pillow image.
+        #     """
+        #     # Map ROS2 encodings to PIL (Image Mode, Raw Mode)
+        #     encoding_mapping = {
+        #         'mono8': ('L', 'L'),
+        #         '8UC1': ('L', 'L'),
+        #         '16UC1': ('I;16', 'I;16'),
+        #         'rgb8': ('RGB', 'RGB'),
+        #         'rgba8': ('RGBA', 'RGBA'),
+        #         'bgr8': ('RGB', 'BGR'),
+        #         'bgra8': ('RGBA', 'BGRA')
+        #     }
+        #
+        #     if ros_image_msg.encoding not in encoding_mapping:
+        #         raise ValueError(f"Unsupported encoding: {ros_image_msg.encoding}")
+        #
+        #     pil_mode, raw_mode = encoding_mapping[ros_image_msg.encoding]
+        #
+        #     # Image dimensions
+        #     size = (ros_image_msg.width, ros_image_msg.height)
+        #
+        #     # ROS2 message data is typically an array.array or sequence; convert to strict bytes
+        #     byte_data = bytes(ros_image_msg.data)
+        #
+        #     # Construct and return the PIL Image
+        #     return PIL.Image.frombytes(pil_mode, size, byte_data, 'raw', raw_mode)
 
         # joint_states = JointState()
         # joint_positions_rad = [0.0] * 6
