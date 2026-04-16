@@ -219,29 +219,28 @@ class ArmGUI(ctk.CTk):
         try:
             # joints_deg = np.rad2deg(self.posActual)
             points = self.forward_kinematics() # self.posActual) # joints_deg)
-            ax = self.app.ax
+            ax = self.ax
 
             # Clear previous drawings
-            if hasattr(self.app, 'robot_lines') and self.app.robot_lines is not None:
-                self.app.robot_lines.remove()
-            if hasattr(self.app, 'joint_scatter') and self.app.joint_scatter is not None:
-                self.app.joint_scatter.remove()
+            if hasattr(self, 'robot_lines') and self.robot_lines is not None:
+                self.robot_lines.remove()
+            if hasattr(self, 'joint_scatter') and self.joint_scatter is not None:
+                self.joint_scatter.remove()
 
             # Draw robot
-            self.app.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
+            self.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
                                       color='#00ddff', linewidth=6, solid_capstyle='round')[0]
-            self.app.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
+            self.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
                                            color='#ffaa00', s=120)
             # End-effector highlight
             ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
 
-            self.app.canvas.draw_idle()
+            self.canvas.draw_idle()
         except Exception as e:
             print(f"[Vis Error] {e}")
 
-        #self.app.after(50, lambda: self.update_robot_visualization())
-        # self.update_robot_visualization()
-# ---------------------------------------------------------------------------------------------------
+        self.after(50, self.update_robot_visualization)
+        # ---------------------------------------------------------------------------------------------------
 
     # --------------------------
     # main frame
@@ -251,18 +250,18 @@ class ArmGUI(ctk.CTk):
         ctk.set_appearance_mode('dark')
         ctk.set_default_color_theme('blue')
     
-        self.app = ctk.CTk()
-        self.app.lift()
-        self.app.focus_force()
-        self.app.geometry('1000x680')
-        self.app.title('ARM user control')
+        
+        self.lift()
+        self.focus_force()
+        self.geometry('1000x680')
+        self.title('ARM user control')
         #app.eval('tk::PlaceWindow . center')
-        self.app.resizable(True, True)
+        self.resizable(True, True)
     
-        self.app.grid_rowconfigure(0, weight=1)
-        self.app.grid_rowconfigure(1, weight=0)
-        self.app.grid_columnconfigure(0, weight=0, minsize=300)
-        self.app.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_columnconfigure(0, weight=0, minsize=300)
+        self.grid_columnconfigure(1, weight=1)
     
         
         camera_window = None
@@ -271,7 +270,7 @@ class ArmGUI(ctk.CTk):
         # left frame
     
     
-        left_frame = ctk.CTkFrame(self.app,width=280)
+        left_frame = ctk.CTkFrame(self,width=280)
         left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12,6))
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_propagate(False)
@@ -355,7 +354,7 @@ class ArmGUI(ctk.CTk):
         # --------------------------
         # right frame
     
-        right_frame = ctk.CTkFrame(self.app)
+        right_frame = ctk.CTkFrame(self)
         right_frame.grid(row=0, column=1, sticky='nsew', padx=(6,12), pady=(12,6))
     
         right_frame.grid_columnconfigure(0, weight=1)
@@ -363,14 +362,19 @@ class ArmGUI(ctk.CTk):
         right_frame.grid_rowconfigure(1, weight=0)  
         right_frame.grid_rowconfigure(2, weight=0)
         right_frame.grid_rowconfigure(3, weight=0)
+	graph = ctk.CTkFrame(right_frame)
+        graph.grid(row=2, column=0, sticky='nsew', padx=8, pady=(4,4))
+        graph.grid_rowconfigure(1, weight=1)
+        graph.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(graph, text='Animation').grid(row=0, column=0, pady=(6,2))
 
         # ------------------------ 3D widget (in main function - right frame) -------------------------------
         fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
         ax = fig.add_subplot(111, projection='3d')
         ax.set_facecolor('#1e1e1e')
     
-        canvas = FigureCanvasTkAgg(fig, master=self.app)
-        canvas.get_tk_widget().grid(row=2, column=0, columnspan=2, sticky='nsew', padx=12, pady=8)
+        canvas = FigureCanvasTkAgg(fig, master=graph)
+        canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew', padx=8, pady=8)
 
     	# Styling
         ax.set_xlabel('X (mm)', color='white')
@@ -380,22 +384,22 @@ class ArmGUI(ctk.CTk):
         ax.grid(True, alpha=0.3)
     
     	# Wide view so base is in center and full 360° rotation is visible
-        ax.set_xlim(-300, 300)
-        ax.set_ylim(-300, 300)
+        ax.set_xlim(-400, 400)
+        ax.set_ylim(-400, 400)
         ax.set_zlim(0, 600)
         ax.view_init(elev=25, azim=-60)
     
     	# Store references
-        self.app.fig = fig
-        self.app.ax = ax
-        self.app.canvas = canvas
-        self.app.robot_lines = None
-        self.app.joint_scatter = None
+        self.fig = fig
+        self.ax = ax
+        self.canvas = canvas
+        self.robot_lines = None
+        self.joint_scatter = None
 	# ---------------------------------------------------------------------------------------------------
 
 	# ----------------- calling the function (right after widget block ----------------------------------
     	# Start real-time animation
-        self.app.after(10, lambda: self.update_robot_visualization())
+        self.after(10, lambda: self.update_robot_visualization())
         # self.update_robot_visualization()
     
     
@@ -657,7 +661,7 @@ class ArmGUI(ctk.CTk):
         def open_camera():
             #nonlocal camera_window
             if camera_window is None or not camera_window.winfo_exists():
-                camera_window = CameraWindow(self.app)
+                camera_window = CameraWindow(self)
             else:
                 camera_window.focus()
     
@@ -674,17 +678,17 @@ class ArmGUI(ctk.CTk):
                 row=0, column=col, padx=4
             )
     
-        return self.app
+        return self
     
 # --------------------------
 
     def run_ui(self):
         def ros_spin():
             rclpy.spin(self.node)
-        self.app = self.main()
+        self.main()
         ros_thread = threading.Thread(target=ros_spin, daemon=True)
         ros_thread.start()
-        self.app.mainloop()
+        self.mainloop()
         self.node.destroy_node()
 
 def main():
