@@ -226,6 +226,8 @@ class ArmGUI(ctk.CTk):
                 self.robot_lines.remove()
             if hasattr(self, 'joint_scatter') and self.joint_scatter is not None:
                 self.joint_scatter.remove()
+            if hasattr(self, 'end_effector') and self.end_effector is not None:
+                self.end_effector.remove()
 
             # Draw robot
             self.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
@@ -233,13 +235,13 @@ class ArmGUI(ctk.CTk):
             self.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
                                            color='#ffaa00', s=120)
             # End-effector highlight
-            ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
+            self.end_effector = ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
 
             self.canvas.draw_idle()
         except Exception as e:
             print(f"[Vis Error] {e}")
 
-        self.after(50, self.update_robot_visualization)
+        self.after(10, self.update_robot_visualization)
         # ---------------------------------------------------------------------------------------------------
 
     # --------------------------
@@ -362,7 +364,7 @@ class ArmGUI(ctk.CTk):
         right_frame.grid_rowconfigure(1, weight=0)  
         right_frame.grid_rowconfigure(2, weight=0)
         right_frame.grid_rowconfigure(3, weight=0)
-	graph = ctk.CTkFrame(right_frame)
+        graph = ctk.CTkFrame(right_frame)
         graph.grid(row=2, column=0, sticky='nsew', padx=8, pady=(4,4))
         graph.grid_rowconfigure(1, weight=1)
         graph.grid_columnconfigure(0, weight=1)
@@ -395,9 +397,9 @@ class ArmGUI(ctk.CTk):
         self.canvas = canvas
         self.robot_lines = None
         self.joint_scatter = None
-	# ---------------------------------------------------------------------------------------------------
+	    # ---------------------------------------------------------------------------------------------------
 
-	# ----------------- calling the function (right after widget block ----------------------------------
+	    # ----------------- calling the function (right after widget block ----------------------------------
     	# Start real-time animation
         self.after(10, lambda: self.update_robot_visualization())
         # self.update_robot_visualization()
@@ -494,11 +496,11 @@ class ArmGUI(ctk.CTk):
         coordinate_frame.pack(fill="both", expand=True)
     
     
-        graph = ctk.CTkFrame(right_frame)
-        graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
-        graph.grid_rowconfigure(1, weight = 1)
-        graph.grid_columnconfigure(0, weight = 1)
-        ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
+        # graph = ctk.CTkFrame(right_frame)
+        # graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
+        # graph.grid_rowconfigure(1, weight = 1)
+        # graph.grid_columnconfigure(0, weight = 1)
+        # ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
     
     
         # --------------------------
