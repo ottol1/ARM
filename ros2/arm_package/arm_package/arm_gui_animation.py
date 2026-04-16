@@ -18,9 +18,10 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from sensor_msgs.msg import JointState
 
-class ArmGUI(Node, ctk.CTk):
+class ArmGUI(ctk.CTk):
     def __init__(self):
-        super().__init__('arm_command_node')
+        super().__init__()
+        self.node = rclpy.create_node('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
         self.posCommand=[0.0]*6
@@ -33,7 +34,7 @@ class ArmGUI(Node, ctk.CTk):
  
 #	publish to the arm_controller/controller_state topic
  
-        self.arm_publisher = self.create_publisher(
+        self.arm_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             '/arm_controller/controller_state',
             10
@@ -41,7 +42,7 @@ class ArmGUI(Node, ctk.CTk):
  
 #	publish to the gripper_controller/controller_state topic
  
-        self.gripper_publisher = self.create_publisher(
+        self.gripper_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             'gripper_controller/controller_state',
             10
@@ -49,7 +50,7 @@ class ArmGUI(Node, ctk.CTk):
  
 #	subscribe to the joint_state topic
  
-        self.state_subscriber = self.create_subscription(
+        self.state_subscriber = self.node.create_subscription(
             JointState,
             '/joint_state',
             self.arm_state_subscriber,
@@ -137,7 +138,6 @@ class ArmGUI(Node, ctk.CTk):
     def arm_state_subscriber(self, msg):
         self.posActual = list(msg.position)
         self.velActual = list(msg.velocity)
-        print(msg)
  
  
     def set_slider_joints(self, degrees: list):
@@ -395,8 +395,8 @@ class ArmGUI(Node, ctk.CTk):
 
 	# ----------------- calling the function (right after widget block ----------------------------------
     	# Start real-time animation
-        # self.app.after(200, lambda: self.update_robot_visualization())
-        self.update_robot_visualization()
+        self.app.after(10, lambda: self.update_robot_visualization())
+        # self.update_robot_visualization()
     
     
         # --------------------------
@@ -679,10 +679,13 @@ class ArmGUI(Node, ctk.CTk):
 # --------------------------
 
     def run_ui(self):
+        def ros_spin():
+            rclpy.spin(self.node)
         self.app = self.main()
-        ros_thread = threading.Thread(target=rclpy.spin, daemon=True)
-        ros_thread.start
+        ros_thread = threading.Thread(target=ros_spin, daemon=True)
+        ros_thread.start()
         self.app.mainloop()
+        self.node.destroy_node()
 
 def main():
     rclpy.init()
@@ -692,7 +695,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        node.close()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
