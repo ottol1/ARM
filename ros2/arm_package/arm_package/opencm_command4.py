@@ -131,7 +131,7 @@ class opencmCommandNode(Node):
 				joint_positions_rad[i] = float(joint_data[i])*2*math.pi/4095 - math.pi
 				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.229)/60
 			elif i < 5:
-				joint_positions_rad[i] = float(joint_data[i])*((2*math.pi)*(300/360))/1023
+				joint_positions_rad[i] = float(joint_data[i])*((2*math.pi)*(300/360))/1023 - math.pi
 				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
 			elif i == 5:
 				joint_positions_rad[i] = float(joint_data[i])/1023.0
