@@ -16,9 +16,8 @@ import numpy as np
 #from builtin_interfaces.msg import Duration
 #from sensor_msgs.msg import JointState
 
-#class ArmGUI(Node, ctk.CTk):
+class ArmGUI(ctk.CTk):
     def __init__(self):
-        super().__init__('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
         self.posCommand=[0.0]*6
@@ -38,19 +37,17 @@ import numpy as np
 
     # --------------------------
     # ------------------------ forward kinematics function ------------------------
-    def forward_kinematics(joints_deg):
-    	t1, t2, t3, t4, t5, t6 = np.deg2rad(joints_deg)
-    
-    	# New dimensions from your latest script
-    	d1 = 57.48
-    	a2 = 140.05
-    	d2 = 2.0      # offset in A2
-    	a3 = 143.19
-    	a4 = 11.0
-    	d5 = 151.74
+    def forward_kinematics(self):# joints):
+        t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
+        d1 = 57.48
+        a2 = 140.05
+        d2 = 2.0      # offset in A2
+        a3 = 143.19
+        a4 = 11.0
+        d5 = 151.74
 
     	# A1
-    	A1 = np.array([
+        A1 = np.array([
             [np.cos(t1), 0,          np.sin(t1), 0],
             [np.sin(t1), 0,         -np.cos(t1), 0],
             [0,          1,          0,          d1],
@@ -58,7 +55,7 @@ import numpy as np
     	])
 
     	# A2 (with d2 offset)
-    	A2 = np.array([
+        A2 = np.array([
             [np.cos(t2), -np.sin(t2), 0, a2*np.cos(t2)],
             [np.sin(t2),  np.cos(t2), 0, a2*np.sin(t2)],
             [0,           0,          1, d2],
@@ -66,7 +63,7 @@ import numpy as np
     	])
 
     	# A3
-    	A3 = np.array([
+        A3 = np.array([
             [np.cos(t3), -np.sin(t3), 0, a3*np.cos(t3)],
             [np.sin(t3),  np.cos(t3), 0, a3*np.sin(t3)],
             [0,           0,          1, 0],
@@ -74,7 +71,7 @@ import numpy as np
     	])
 
     	# A4
-    	A4 = np.array([
+        A4 = np.array([
             [np.cos(np.pi/2 + t4), 0,          np.sin(np.pi/2 + t4), a4*np.cos(t4)],
             [np.sin(np.pi/2 + t4), 0,         -np.cos(np.pi/2 + t4), a4*np.sin(t4)],
             [0,                    1,          0,                    0],
@@ -82,7 +79,7 @@ import numpy as np
     	])
 
         # A5
-    	A5 = np.array([
+        A5 = np.array([
             [np.cos(t5), -np.sin(t5), 0, 0],
             [np.sin(t5),  np.cos(t5), 0, 0],
             [0,           0,          1, d5],
@@ -90,43 +87,43 @@ import numpy as np
     	])
 
     	# Chain
-    	T = np.eye(4)
-    	origins = [T[:3, 3].copy()]
+        T = np.eye(4)
+        origins = [T[:3, 3].copy()]
 
-    	for A in [A1, A2, A3, A4, A5]:
+        for A in [A1, A2, A3, A4, A5]:
             T = T @ A
             origins.append(T[:3, 3].copy())
 
-    	return np.array(origins)  # (6, 3) points
+        return np.array(origins)  # (6, 3) points
 # -----------------------------------------------------------------------------------------------
 
 # ---------------------- update function (right after forward kinimatics) -----------------------
-    def update_robot_visualization():
-    	"""Real-time 3D robot update"""
-    	try:
-            joints_deg = np.rad2deg(self.posActual)
-            points = forward_kinematics(joints_deg)
-            ax = app.ax
+    def update_robot_visualization(self):
+        """Real-time 3D robot update"""
+        try:
+            # joints_deg = np.rad2deg(self.posActual)
+            points = self.forward_kinematics() # self.posActual) # joints_deg)
+            ax = self.app.ax
 
             # Clear previous drawings
-            if hasattr(app, 'robot_lines') and app.robot_lines is not None:
-             	app.robot_lines.remove()
-            if hasattr(app, 'joint_scatter') and app.joint_scatter is not None:
-            	app.joint_scatter.remove()
+            if hasattr(self.app, 'robot_lines') and self.app.robot_lines is not None:
+                self.app.robot_lines.remove()
+            if hasattr(self.app, 'joint_scatter') and self.app.joint_scatter is not None:
+                self.app.joint_scatter.remove()
 
             # Draw robot
-            app.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
+            self.app.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
                                       color='#00ddff', linewidth=6, solid_capstyle='round')[0]
-            app.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
+            self.app.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
                                            color='#ffaa00', s=120)
             # End-effector highlight
             ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
 
-            app.canvas.draw_idle()
-    	except Exception as e:
+            self.app.canvas.draw_idle()
+        except Exception as e:
             print(f"[Vis Error] {e}")
 
-    	app.after(50, lambda: update_robot_visualization())
+        self.app.after(50, lambda: self.update_robot_visualization())
 # ---------------------------------------------------------------------------------------------------
 
 
@@ -252,37 +249,37 @@ import numpy as np
         right_frame.grid_rowconfigure(3, weight=0)
     
 	# ------------------------ 3D widget (in main function - right frame) -------------------------------
-    	fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
-    	ax = fig.add_subplot(111, projection='3d')
-    	ax.set_facecolor('#1e1e1e')
+        fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_facecolor('#1e1e1e')
     
-    	canvas = FigureCanvasTkAgg(fig, master=app)
-    	canvas.get_tk_widget().grid(row=2, column=0, columnspan=2, sticky='nsew', padx=12, pady=8)
-    
+        canvas = FigureCanvasTkAgg(fig, master=self.app)
+        canvas.get_tk_widget().grid(row=2, column=0, columnspan=2, sticky='nsew', padx=12, pady=8)
+
     	# Styling
-    	ax.set_xlabel('X (mm)', color='white')
-    	ax.set_ylabel('Y (mm)', color='white')
-    	ax.set_zlabel('Z (mm)', color='white')
-    	ax.set_title('5-DOF Robot Arm - Real Time', color='white', pad=15)
-    	ax.grid(True, alpha=0.3)
+        ax.set_xlabel('X (mm)', color='white')
+        ax.set_ylabel('Y (mm)', color='white')
+        ax.set_zlabel('Z (mm)', color='white')
+        ax.set_title('5-DOF Robot Arm - Real Time', color='white', pad=15)
+        ax.grid(True, alpha=0.3)
     
     	# Wide view so base is in center and full 360° rotation is visible
-    	ax.set_xlim(-300, 300)
-    	ax.set_ylim(-300, 300)
-    	ax.set_zlim(0, 600)
-    	ax.view_init(elev=25, azim=-60)
+        ax.set_xlim(-300, 300)
+        ax.set_ylim(-300, 300)
+        ax.set_zlim(0, 600)
+        ax.view_init(elev=25, azim=-60)
     
     	# Store references
-    	app.fig = fig
-    	app.ax = ax
-    	app.canvas = canvas
-    	app.robot_lines = None
-    	app.joint_scatter = None
+        self.app.fig = fig
+        self.app.ax = ax
+        self.app.canvas = canvas
+        self.app.robot_lines = None
+        self.app.joint_scatter = None
 	# ---------------------------------------------------------------------------------------------------
 
 	# ----------------- calling the function (right after widget block ----------------------------------
     	# Start real-time animation
-    	app.after(200, lambda: update_robot_visualization(app, subscriber))
+        self.app.after(200, lambda: self.update_robot_visualization())
 	# ---------------------------------------------------------------------------------------------------
     
         # --------------------------
@@ -566,17 +563,14 @@ import numpy as np
 
     def run_ui(self):
         self.app = self.main()
-                self.app.mainloop()
+        self.app.mainloop()
 
 def main():
-    rclpy.init()
     node = ArmGUI()
     try:
         node.run_ui()
     except KeyboardInterrupt:
         pass
-    finally:
-        node.close()
 
 if __name__ == '__main__':
     main()
