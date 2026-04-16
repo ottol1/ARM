@@ -566,9 +566,7 @@ import numpy as np
 
     def run_ui(self):
         self.app = self.main()
-        ros_thread = threading.Thread(target=rclpy.spin, daemon=True)
-        ros_thread.start
-        self.app.mainloop()
+                self.app.mainloop()
 
 def main():
     rclpy.init()
