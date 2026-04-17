@@ -171,15 +171,15 @@ class ArmGUI(ctk.CTk):
         # Desired wrist angle thetad (radians) in world frame
         radial = math.sqrt(x**2 + y**2)
         thetad = math.atan2(z - d1, radial)
-
+        print(thetad)
         # Effective radial distance after base offset d2
         xy_dist2 = x**2 + y**2
         a = math.sqrt(xy_dist2 - d2**2)
         theta1 = math.atan2(y, x) - math.atan2(d2, a)
 
         # variables describing shoulder and elbow positions
-        r = z - d1 - (d5) * math.sin(thetad)
-        s = a - (d5) * math.cos(math.fabs(thetad))
+        r = z - d1 - ((d5) * math.sin(thetad))
+        s = a - ((d5) * math.cos(math.fabs(thetad)))
         D = (s**2 + r**2 - a2**2 - a3**2) / (2 * a3 * a2)
 
         # Check for reachable solution
@@ -196,7 +196,7 @@ class ArmGUI(ctk.CTk):
             theta2_temp = math.atan2(r, s)
             atan_term = math.atan2(
                 a3 * math.sin(theta3),
-                a2 + a3 * math.cos(theta3)
+                a2 + (a3 * math.cos(theta3))
             )
             
             theta2 = theta2_temp - atan_term
@@ -205,10 +205,9 @@ class ArmGUI(ctk.CTk):
 
         # theta5 is fixed at 0
         theta5 = 0.0
+        theta2 = (math.pi/2) - theta2
         
-        theta2 = math.pi - theta2
-        
-        return [theta1, theta2, -theta3, theta4, theta5, D]
+        return [theta1, theta2, theta3, theta4, theta5, D]
     
     
     # ------------------------ forward kinematics function ------------------------
@@ -715,7 +714,6 @@ class ArmGUI(ctk.CTk):
                     print('outside of workspace: Pointing to coordinate')
                 for i in range(5):
                     self.posCommand[i] = ikValues[i]
-
                 self.arm_command_publisher()
     
             elif selected ==  4:
