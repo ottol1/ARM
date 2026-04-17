@@ -29,8 +29,8 @@ class ArmGUI(ctk.CTk):
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
         self.switch = False
-        self.posCommand_list = [0.0]*5
-
+        self.posCommand_list = []
+        self.xyzCommand_list = []
  
 #	publish to the arm_controller/controller_state topic
  
@@ -150,8 +150,9 @@ class ArmGUI(ctk.CTk):
     def destroy_node(self):
         pass
     # --------------------------
+
     # ------------------------ inverse kinematics function ------------------------
-    def xyz_inverse(x: float, y: float, z: float):
+    def xyz_inverse(self, x: float, y: float, z: float):
         """
         Solves for inverse kinematics of ARM
         
@@ -208,6 +209,7 @@ class ArmGUI(ctk.CTk):
         theta2 = math.pi - theta2
         
         return [theta1, theta2, theta3, theta4, theta5, D]
+    
     # ------------------------ forward kinematics function ------------------------
     def forward_kinematics(self):# joints):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
@@ -589,16 +591,23 @@ class ArmGUI(ctk.CTk):
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
                     return
+                
+                try:
+                    xyz_point = [float(v) for v in vals]   # [x, y, z]
+                    self.xyzCommand_list.append(xyz_point)
+                    coordinate_count[0] += 1
     
-                coordinate_count[0] += 1
+                    ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(anchor="w",pady=2)
     
-                ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(anchor="w",pady=2)
-    
-                status_label.configure(
-                    text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
-                    text_color='green')
-                for c in self.coordinate_entries: c.delete(0, 'end')
-    
+                    status_label.configure(
+                        text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
+                        text_color='green')
+                    
+                    for c in self.coordinate_entries: c.delete(0, 'end')
+
+                except ValueError:
+                    status_label.configure(text='Please enter valid numbers', text_color='red')
+            
             elif selected == 4:
                 vals = [slider.get for slider in self.joint_sliders]
                 if not validate(vals):
@@ -676,16 +685,18 @@ class ArmGUI(ctk.CTk):
                         for j in range(5):
                             self.posCommand[i] = self.posCommand_list[i][j]
                         self.arm_command_publisher()
-              
+                
             elif selected ==  3:
-                xyz = [0.0]*3
-                for i in range(3):
-                    xyz[i] = float(self.coordinate_entries.get())
-                ikValues = xyz_inverse(xyz[0],xyz[1],xyz[2])
-                if ikValue[5] > 1.0:
+                for point in self.xyzCommand_list:
+                    x, y, z = point      
+
+                ikValues = self.xyz_inverse(x,y,z)
+
+                if ikValues[5] > 1.0:
                     print('outside of workspace: Pointing to coordinate')
                 for i in range(5):
                     self.posCommand[i] = ikValues[i]
+
                 self.arm_command_publisher()
     
             elif selected ==  4:
@@ -693,23 +704,7 @@ class ArmGUI(ctk.CTk):
                     self.posCommand[i] = float(self.joint_sliders[i].get())
                 self.arm_command_publisher()
         # --------------------------
-        # def xyz_inverse(xyz):
-            
-        #     d1 = 57.48 # mm
-        #     a2 = 140.05
-        #     d2 = 2
-        #     a3 = 143.19
-        #     a4 = 11
-        #     d5 = 151.74
 
-        #     a = 
-        #     q1 = math.atan2(xyz[1], xyz(0))
-        #     q2y = 
-        #     q2x = 
-        #     q2 = atan2(,)
-        #     return
-
-    
         # --------------------------
         def open_gripper():
             #node.publish_gripper('open')
