@@ -602,6 +602,14 @@ class ArmGUI(ctk.CTk):
             # --------------------------
             # run
 
+        feedframe = ctk.CTkFrame(left_frame)
+        feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
+
+        force_label = ctk.CTkLabel(feedframe, text=f"Force sensor: \n{self.posActual[5]}")
+        force_label.grid(row=0, column=0, pady=(0, 6))
+
+        velocity_label = ctk.CTkLabel(feedframe, text=f"Velocity Feedback: \n{self.velActual}")
+        velocity_label.grid(row=1, column=0, pady=(0, 6))
 
         def run():
             selected = mode.get()
