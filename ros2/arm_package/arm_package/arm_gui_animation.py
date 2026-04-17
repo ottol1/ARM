@@ -29,7 +29,8 @@ class ArmGUI(ctk.CTk):
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
         self.switch = False
-        self.posCommand_list = [0.0]*5
+        self.posCommand_list = []
+        self.xyzCommand_list = []
 
  
 #	publish to the arm_controller/controller_state topic
@@ -150,11 +151,71 @@ class ArmGUI(ctk.CTk):
     def destroy_node(self):
         pass
     # --------------------------
+    # ------------------------ inverse kinematics function ------------------------
+    def xyz_inverse(x: float, y: float, z: float):
+        """
+        Solves for inverse kinematics of ARM
+        
+        Inputs: target position (x, y, z) in mm
+        Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
+        
+        If the target is outside the workspace (|D| > 1), ARM points to the object
+        """
+        # Link lengths
+        d1 = 57.48
+        a2 = 140.05
+        d2 = 2.0
+        a3 = 143.19
+        d5 = 161.74
+
+        # Desired wrist angle thetad (radians) in world frame
+        radial = math.sqrt(x**2 + y**2)
+        thetad = math.atan2(z - d1, radial)
+
+        # Effective radial distance after base offset d2
+        xy_dist2 = x**2 + y**2
+        a = math.sqrt(xy_dist2 - d2**2)
+        theta1 = math.atan2(y, x) - math.atan2(d2, a)
+
+        # variables describing shoulder and elbow positions
+        r = z - d1 - (d5) * math.sin(thetad)
+        s = a - (d5) * math.cos(math.fabs(thetad))
+        D = (s**2 + r**2 - a2**2 - a3**2) / (2 * a3 * a2)
+
+        # Check for reachable solution
+        if abs(D) > 1.0:
+            # Outside workspace
+            theta3 = 0.0
+            theta2 = math.atan2(z-d1, radial)
+            theta4 = 0.0
+        else:
+            # Inverse kinematics
+            sqrt_term = math.sqrt(1.0 - D**2)
+            theta3 = math.atan2(-sqrt_term, D)
+            
+            theta2_temp = math.atan2(r, s)
+            atan_term = math.atan2(
+                a3 * math.sin(theta3),
+                a2 + a3 * math.cos(theta3)
+            )
+            
+            theta2 = theta2_temp - atan_term
+            
+            theta4 = -theta2 - theta3 + thetad
+
+        # theta5 is fixed at 0
+        theta5 = 0.0
+        
+        theta2 = math.pi - theta2
+        
+        return [theta1, theta2, theta3, theta4, theta5, D]
+    
     
     # ------------------------ forward kinematics function ------------------------
     def forward_kinematics(self):# joints):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
+        t4 = -t4
         d1 = 57.48
         a2 = 140.05
         d2 = 2.0      # offset in A2
@@ -516,7 +577,7 @@ class ArmGUI(ctk.CTk):
                     status_label.configure(text='Invalid or missing joint values.', text_color='red')
                     return
 
-                self.posCommand_list.append([vals]) # WE NEED TO CHANGE THIS LATER, this is only so that we can do some demonstrations a bit faster
+                self.posCommand_list.append(vals)
 
                 joint_count[0] += 1
     
@@ -532,6 +593,8 @@ class ArmGUI(ctk.CTk):
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
                     return
+                
+                self.xyzCommand_list.append(vals)
     
                 coordinate_count[0] += 1
     
@@ -592,10 +655,13 @@ class ArmGUI(ctk.CTk):
 
 
         def vect_compare(posCommand, posActual):
+            # print("Entered Vect Compare")
             for i in range(len(posCommand)):
-                if (posActual[i] > (posCommand[i] + 1)) or (posActual[i] < (posCommand[i] - 1)):
+                print(f"{posCommand} = {posActual}")
+                if (posActual[i] > (posCommand[i] + 0.02)) or (posActual[i] < (posCommand[i] - 0.02)):
+                    # print("Exiting Vect Compare: False")
                     return False
-            
+            # print("Exiting Vect Compare: True")
             return True
 
 
@@ -622,38 +688,35 @@ class ArmGUI(ctk.CTk):
                 status_label.configure(text=f'Target: {obj}', text_color='green')
             
             elif selected ==  2:
+                # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
-                    while vect_compare(self.posCommand, self.posActual[i]) == False:
-                        for j in range(5):
-                            self.posCommand[i] = self.posCommand_list[i][j]
-                        self.arm_command_publisher()
+                    diff = vect_compare(self.posCommand, self.posActual)
+                    while (diff == False) and (selected == 2):
+                        diff = vect_compare(self.posCommand, self.posActual)
+                    # print(f"Vect Compare Passed, writing joint values {self.posCommand_list[i]}")
+                    for j in range(5):
+                        self.posCommand[i] = self.posCommand_list[i][j]
+                    self.arm_command_publisher()
                 
-                #   elif selected ==  3:
-                # xyz = [0.0]*3
-                # for i in range(3):
-                #     xyz[i] = float(self.coordinate_entries.get())
-                # self.posCommand = xyz_inverse(xyz)
+            elif selected ==  3:
+                xyz = [0.0]*3
+                for i in range(3):
+                    xyz[i] = float(self.xyzCommand_list[0][i])
+                print(xyz[0])
+                print(xyz[1])
+                print(xyz[2])
+                ikValues = self.xyz_inverse(xyz[0],xyz[1],xyz[2])
+                if ikValues[5] > 1.0:
+                    print('outside of workspace: Pointing to coordinate')
+                for i in range(5):
+                    self.posCommand[i] = ikValues[i]
+                self.arm_command_publisher()
     
             elif selected ==  4:
                 for i in range (5):
                     self.posCommand[i] = float(self.joint_sliders[i].get())
                 self.arm_command_publisher()
         # --------------------------
-        # def xyz_inverse(xyz):
-            
-        #     d1 = 57.48 # mm
-        #     a2 = 140.05
-        #     d2 = 2
-        #     a3 = 143.19
-        #     a4 = 11
-        #     d5 = 151.74
-
-        #     a = 
-        #     q1 = math.atan2(xyz[1], xyz(0))
-        #     q2y = 
-        #     q2x = 
-        #     q2 = atan2(,)
-        #     return
 
     
         # --------------------------
