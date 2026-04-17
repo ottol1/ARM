@@ -10,10 +10,9 @@ def generate_launch_description():
         Node(
             package='arm_package',
             executable='opencm_command4'
+        ),
+        Node(
+            package='arm_package',
+            executable='arm_gui_animation'
         )
-        # ,
-        # Node(
-        #     package='arm_package',
-        #     executable='arm_gui'
-        # )
     ])
