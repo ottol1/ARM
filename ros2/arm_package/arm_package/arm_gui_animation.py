@@ -152,7 +152,7 @@ class ArmGUI(ctk.CTk):
         pass
     # --------------------------
     # ------------------------ inverse kinematics function ------------------------
-    def xyz_inverse(x: float, y: float, z: float):
+    def xyz_inverse(self, x: float, y: float, z: float):
         """
         Solves for inverse kinematics of ARM
         
@@ -593,17 +593,24 @@ class ArmGUI(ctk.CTk):
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
                     return
-                
-                self.xyzCommand_list.append(vals)
-    
-                coordinate_count[0] += 1
-    
-                ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(anchor="w",pady=2)
-    
-                status_label.configure(
-                    text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
-                    text_color='green')
-                for c in self.coordinate_entries: c.delete(0, 'end')
+
+                try:
+                    xyz_point = [float(v) for v in vals]  # [x, y, z]
+                    self.xyzCommand_list.append(xyz_point)
+                    coordinate_count[0] += 1
+
+                    ctk.CTkLabel(coordinate_frame,
+                                 text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(
+                        anchor="w", pady=2)
+
+                    status_label.configure(
+                        text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
+                        text_color='green')
+
+                    for c in self.coordinate_entries: c.delete(0, 'end')
+
+                except ValueError:
+                    status_label.configure(text='Please enter valid numbers', text_color='red')
     
             elif selected == 4:
                 vals = [slider.get for slider in self.joint_sliders]
@@ -699,17 +706,16 @@ class ArmGUI(ctk.CTk):
                     self.arm_command_publisher()
                 
             elif selected ==  3:
-                xyz = [0.0]*3
-                for i in range(3):
-                    xyz[i] = float(self.xyzCommand_list[0][i])
-                print(xyz[0])
-                print(xyz[1])
-                print(xyz[2])
-                ikValues = self.xyz_inverse(xyz[0],xyz[1],xyz[2])
+                for point in self.xyzCommand_list:
+                    x, y, z = point
+
+                ikValues = self.xyz_inverse(x, y, z)
+
                 if ikValues[5] > 1.0:
                     print('outside of workspace: Pointing to coordinate')
                 for i in range(5):
                     self.posCommand[i] = ikValues[i]
+
                 self.arm_command_publisher()
     
             elif selected ==  4:
