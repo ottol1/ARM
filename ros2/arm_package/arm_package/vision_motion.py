@@ -95,7 +95,7 @@ class visionMotionNode(Node):
             self.tick_align()
             if abs(self.error) < 20:
                 self.state = 'approach'
-        else:
+        # else:
             # self.rpms = [20, -20]
 
     def tick_align(self): # For attempting to align the center of the object with the center of the image view
