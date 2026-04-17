@@ -658,7 +658,7 @@ class ArmGUI(ctk.CTk):
             # print("Entered Vect Compare")
             for i in range(len(posCommand)):
                 print(f"{posCommand} = {posActual}")
-                if (posActual[i] > (posCommand[i] + 0.02)) or (posActual[i] < (posCommand[i] - 0.02)):
+                if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (float(posActual[i]) < (float(posCommand[i]) - 0.3)):
                     # print("Exiting Vect Compare: False")
                     return False
             # print("Exiting Vect Compare: True")
@@ -695,7 +695,7 @@ class ArmGUI(ctk.CTk):
                         diff = vect_compare(self.posCommand, self.posActual)
                     # print(f"Vect Compare Passed, writing joint values {self.posCommand_list[i]}")
                     for j in range(5):
-                        self.posCommand[i] = self.posCommand_list[i][j]
+                        self.posCommand[j] = float(self.posCommand_list[i][j])
                     self.arm_command_publisher()
                 
             elif selected ==  3:
