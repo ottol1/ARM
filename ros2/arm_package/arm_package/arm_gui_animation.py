@@ -208,7 +208,7 @@ class ArmGUI(ctk.CTk):
         
         theta2 = math.pi - theta2
         
-        return [theta1, theta2, theta3, theta4, theta5, D]
+        return [theta1, theta2, -theta3, theta4, theta5, D]
     
     
     # ------------------------ forward kinematics function ------------------------
