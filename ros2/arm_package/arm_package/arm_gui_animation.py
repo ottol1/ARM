@@ -53,7 +53,7 @@ class ArmGUI(ctk.CTk):
  
         self.state_subscriber = self.node.create_subscription(
             JointState,
-            '/joint_state',
+            '/joint_states', # consider /rviz/moveit/update_custom_goal_state/joint_state
             self.arm_state_subscriber,
             10
         )
@@ -70,7 +70,7 @@ class ArmGUI(ctk.CTk):
             self.velCommand=[0.2]*6
 
         # joint names
-        command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
+        command.joint_names = ['shoulder_joint','upperarm_joint','forearm_joint','wrist_joint','frame_joint']
 
         # desired, actual, error must be JointTrajectoryPoint
         desired = JointTrajectoryPoint()

@@ -51,7 +51,7 @@ class opencmCommandNode(Node):
 		# publish to joint_state topic
 		self.publisher = self.create_publisher(
 			JointState,
-			'/joint_state',
+			'/joint_states', # consider /rviz/moveit/update_custom_goal_state/joint_state
 			10)
 		
 		self.posCommand_int = [2048, 1024, 2048, 614, 614, 0]
@@ -174,7 +174,7 @@ class opencmCommandNode(Node):
 			self.get_logger().error("Failed to receive joint data: {e}")
 		
 		if joint_data != ['']:
-			joint_states.name = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6']
+			joint_states.name = ['shoulder_joint', 'upperarm_joint', 'forearm_joint', 'wrist_joint', 'frame_joint', 'worm_joint']
 
 			joint_positions_rad, joint_velocities_rad = self.int_to_rad(joint_data)
 
