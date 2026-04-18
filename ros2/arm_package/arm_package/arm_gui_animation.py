@@ -162,10 +162,10 @@ class ArmGUI(ctk.CTk):
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 57.48
-        a2 = 140.05
+        d1 = 57.48 # recommend 63.0
+        a2 = 140.05 # recommend 141.23
         d2 = 2.0
-        a3 = 143.19
+        a3 = 143.19 # recommend 145.3
         d5 = 161.74
 
         # Desired wrist angle thetad (radians) in world frame
@@ -215,12 +215,12 @@ class ArmGUI(ctk.CTk):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
         t4 = -t4
-        d1 = 57.48
-        a2 = 140.05
+        d1 = 57.48 # recommend 63.0
+        a2 = 140.05 # recommend 141.23
         d2 = 2.0      # offset in A2
-        a3 = 143.19
-        a4 = 11.0
-        d5 = 151.74
+        a3 = 143.19 # recommend 145.3
+        a4 = 11.0 # recommend removing a4
+        d5 = 151.74 # d5 in IK function is 161.74
 
     	# A1
         A1 = np.array([
@@ -273,7 +273,7 @@ class ArmGUI(ctk.CTk):
         return np.array(origins)  # (6, 3) points
 # -----------------------------------------------------------------------------------------------
 
-# ---------------------- update function (right after forward kinimatics) -----------------------
+# ---------------------- update function (right after forward kinematics) -----------------------
     def update_robot_visualization(self):
         """Real-time 3D robot update"""
         try:
@@ -711,7 +711,7 @@ class ArmGUI(ctk.CTk):
                 ikValues = self.xyz_inverse(x, y, z)
 
                 if ikValues[5] > 1.0:
-                    print('outside of workspace: Pointing to coordinate')
+                    print('Outside of workspace: Pointing to coordinate')
                 for i in range(5):
                     self.posCommand[i] = ikValues[i]
                 self.arm_command_publisher()
@@ -735,12 +735,12 @@ class ArmGUI(ctk.CTk):
             status_label.configure(text='Gripper closing', text_color='green')
     
         
-        def open_camera():
-            #nonlocal camera_window
-            if camera_window is None or not camera_window.winfo_exists():
-                camera_window = CameraWindow(self)
-            else:
-                camera_window.focus()
+        # def open_camera():
+        #     #nonlocal camera_window
+        #     if camera_window is None or not camera_window.winfo_exists():
+        #         camera_window = CameraWindow(self)
+        #     else:
+        #         camera_window.focus()
     
             
         # --------------------------
@@ -749,7 +749,7 @@ class ArmGUI(ctk.CTk):
             ('Open Gripper',  open_gripper, {}),
             ('Close Gripper', close_gripper,{}),
             ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
-            ('Camera',        open_camera,  {}),
+            # ('Camera',        open_camera,  {}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
