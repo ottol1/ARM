@@ -15,7 +15,7 @@ def generate_launch_description():
     # Command-line arguments
     ros2_control_hardware_type = DeclareLaunchArgument(
         "ros2_control_hardware_type",
-        default_value="arm_robot",
+        default_value="mock_components",
         description="ROS2 control hardware interface type to use for the launch file -- possible values: [mock_components, arm_robot]",
     )
 
@@ -30,6 +30,7 @@ def generate_launch_description():
         .robot_description_semantic(file_path="config/arm_robot_description.srdf")
         .trajectory_execution(file_path="config/moveit_controllers.yaml")
         .planning_pipelines(pipelines=["ompl", "pilz_industrial_motion_planner"])
+        .sensors_3d(file_path="config/sensors_3d.yaml")
         .to_moveit_configs()
     )
 
@@ -90,7 +91,7 @@ def generate_launch_description():
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[moveit_config.robot_description, ros2_controllers_path],
+        parameters=[ros2_controllers_path], # including moveit_config.robot_description here causes the GUI animation to no longer update properly
         remappings=[
             ("/controller_manager/robot_description", "~/robot_description"),
         ],

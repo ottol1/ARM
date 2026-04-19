@@ -17,6 +17,9 @@ from control_msgs.msg import JointTrajectoryControllerState
 from trajectory_msgs.msg import JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from sensor_msgs.msg import JointState
+from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2D, Detection2DArray
+from std_msgs.msg import String
 
 class ArmGUI(ctk.CTk):
     def __init__(self):
@@ -49,20 +52,31 @@ class ArmGUI(ctk.CTk):
             10
         )
  
-#	subscribe to the joint_state topic
+#	subscribe to the joint_states topic
  
         self.state_subscriber = self.node.create_subscription(
             JointState,
-            '/joint_states', # consider /rviz/moveit/update_custom_goal_state/joint_state
+            '/joint_states',
             self.arm_state_subscriber,
             10
         )
 
-  
+#	publish to the joint_states topic
+        self.publisher = self.node.create_publisher(
+            JointState,
+            '/joint_states',  # consider /rviz/moveit/update_custom_goal_state/joint_state
+            10
+        )
+
+        self.query_publisher = self.node.create_publisher(
+            String,
+            '/nanoowl/input_query',
+            10
+        )
 
     def arm_command_publisher(self):
         command = JointTrajectoryControllerState()
-
+        command2 = JointState()
         if self.switch == True:
             for i in range(6):
                 self.velCommand[i] = float(self.vel_sliders[0].get())
@@ -99,7 +113,7 @@ class ArmGUI(ctk.CTk):
         command.error = error
 
         self.arm_publisher.publish(command)
-
+        self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic
 
         grip_command = JointTrajectoryControllerState()
 
@@ -692,7 +706,7 @@ class ArmGUI(ctk.CTk):
                     status_label.configure(text='No object entered', text_color='red')
                     return
                 status_label.configure(text=f'Target: {obj}', text_color='green')
-            
+                self.query_publisher.publish(String(data=f'[{obj}]'))
             elif selected ==  2:
                 # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
