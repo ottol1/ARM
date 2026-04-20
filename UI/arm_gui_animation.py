@@ -270,7 +270,7 @@ class ArmGUI(ctk.CTk):
         # variables describing elbow and wrist positions
         r = z - d1
         s = a - a2
-        D = (s**2 + r**2 - a3**2 - a4**2) / (2 * a4 * a3)
+        D = (s**2 + r**2 - a3**2 - d5**2) / (2 * d5 * a3)
 
         # Check for reachable solution
         if abs(D) > 1.0:
@@ -284,8 +284,8 @@ class ArmGUI(ctk.CTk):
             
             theta3_temp = math.atan2(r, s)
             atan_term = math.atan2(
-                a4 * math.sin(theta4),
-                a3 + (a4 * math.cos(theta4))
+                d5 * math.sin(theta4),
+                a3 + (d5 * math.cos(theta4))
             )
             
             theta3 = theta3_temp - atan_term
@@ -532,11 +532,16 @@ class ArmGUI(ctk.CTk):
         ax.grid(True, alpha=0.3)
     
     	# Wide view so base is in center and full 360° rotation is visible
-        ax.set_xlim(-400, 400)
-        ax.set_ylim(-400, 400)
+        ax.set_xlim(-500, 500)
+        ax.set_ylim(-500, 500)
         ax.set_zlim(0, 600)
         ax.view_init(elev=25, azim=-60)
-    
+
+        # update the tick values to white
+        ax.tick_params(axis='x', colors='white')
+        ax.tick_params(axis='y', colors='white')
+        ax.tick_params(axis='z', colors='white')
+
     	# Store references
         self.fig = fig
         self.ax = ax
@@ -795,7 +800,7 @@ class ArmGUI(ctk.CTk):
                     x, y, z = point
 
                 ikValues = self.xyz_inverse(x, y, z)
-                if ikValues[1] > math.pi/2
+                if ikValues[1] > math.pi/2:
                     ikValues = self.xyz_inverse2(x, y, z)
                 if ikValues[5] > 1.0:
                     print('Outside of workspace: Pointing to coordinate')
