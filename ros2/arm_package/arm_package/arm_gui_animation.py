@@ -18,8 +18,9 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Image
-# from vision_msgs.msg import Detection2D, Detection2DArray
+from vision_msgs.msg import Detection2D, Detection2DArray
 from std_msgs.msg import String
+from math import floor
 
 class ArmGUI(ctk.CTk):
     def __init__(self):
@@ -34,10 +35,15 @@ class ArmGUI(ctk.CTk):
         self.switch = False
         self.posCommand_list = []
         self.xyzCommand_list = []
-        self.state = 'search' # When nothing detected through NanoOwl yet
+        self.state = 'starting' # When nothing detected through NanoOwl yet
+        self.detection = None
+        self.detection_center = None
         self.depth = 10000
         self.error = 1000
- 
+        self.lost_time = 0
+        self.tick_timer = self.create_timer(1 / 30, self.tick) # Need to find an alternative to this
+        self.detection_check = 0
+
 #	publish to the arm_controller/controller_state topic
  
         self.arm_publisher = self.node.create_publisher(
@@ -77,21 +83,34 @@ class ArmGUI(ctk.CTk):
         )
 
         # subscribe to selected depth image for NanoOwl
-        # self.depth_image_subscription = self.node.create_subscription(
-        #     Image,
-        #     '/odd_arm_cv/selected_depth_image',
-        #     self.update_depth_image,
-        #     10
-        # )
+        self.depth_image_subscription = self.node.create_subscription(
+            Image,
+            '/odd_arm_cv/selected_depth_image',
+            self.update_depth_image,
+            10
+        )
 
         # subscribe to NanoOwl detections topic
-        # self.detection_subscription = self.node.create_subscription(
-        #     Detection2DArray,
-        #     '/nanoowl/output_detections',
-        #     self.update_detections,
-        #     10
-        # )
+        self.detection_subscription = self.node.create_subscription(
+            Detection2DArray,
+            '/nanoowl/output_detections',
+            self.update_detections,
+            10
+        )
 
+    def update_depth_image(self, msg):
+        if self.detection:
+            depth_array = np.ndarray(shape=(msg.height, msg.width), dtype=np.uint16, buffer=msg.data)
+            self.depth = 0.001*depth_array[floor(self.detection_center[1]), floor(self.detection_center[0])]
+            #print(self.depth*0.001)
+            #print(self.detection.results[0].hypothesis.score)
+
+    def update_detections(self, msg):
+        if len(msg.detections) > 1:
+            self.detection = msg.detections[1]
+            self.detection_center = [self.detection.bbox.center.position.x, self.detection.bbox.center.position.y]
+        else:
+            self.detection = None
 
     def arm_command_publisher(self):
         command = JointTrajectoryControllerState()
@@ -172,7 +191,11 @@ class ArmGUI(ctk.CTk):
     def arm_state_subscriber(self, msg):
         self.posActual = list(msg.position)
         self.velActual = list(msg.velocity)
- 
+
+    def update_feedback(self):
+        self.force_label.configure(text=f"Force sensor: {self.posActual[5]}")
+        self.velocity_label.configure(text=f"Velocity Feeedback: {self.posActual[0]}")
+        self.after(10, self.update_feedback)
  
     def set_slider_joints(self, degrees: list):
         with self.slider_lock:
@@ -183,6 +206,84 @@ class ArmGUI(ctk.CTk):
 
     def destroy_node(self):
         pass
+    # --------------------------
+
+    # ------------------------ object search algorithm --------------------------
+
+    def tick(self):
+
+        # self.rpms = [0.0, 0.0]
+        if self.state == 'starting':
+            self.tick_start()
+        elif self.state == 'searching':
+            self.tick_search()
+        # elif self.state == 'approach':
+        #     self.tick_approach()
+        # elif self.state == 'done':
+        #     self.rpm_publisher.publish(RPM(theta_dot_left=0.0, theta_dot_right=0.0))
+        #     rclpy.try_shutdown()
+        elif self.state == 'tracking':
+            self.tick_align()
+
+
+        # self.rpms[0] = min(max(self.rpms[0], -50), 50)
+        # self.rpms[1] = min(max(self.rpms[1], -50), 50)
+
+        # print(f"{self.state} | RPM: {self.rpms} | DEPTH: {self.depth} | LT: {self.lost_time}")
+
+        # self.rpm_publisher.publish(RPM(theta_dot_left=float(self.rpms[0]), theta_dot_right=float(self.rpms[1])))
+
+    def tick_start(self):
+        print("start ")
+        self.posCommand = [2.9, 0, 0, 1.35, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
+        self.arm_command_publisher()
+        if self.vect_compare(self.posCommand, self.posActual) == True:
+            self.state = 'searching'
+        else:
+            self.state = 'starting'
+
+    def tick_search(self):
+
+        self.posCommand[0] = self.posCommand[0] - 0.015 # ~20 deg/s
+        if self.posCommand[0] < -2.9:
+            self.state = 'starting'
+        else:
+            self.arm_command_publisher()
+            if self.detection:
+                self.state = 'tracking'
+
+    def tick_align(self):
+        self.error = self.detection_center[0] - 424  # 424 is image center on ARM camera
+        # check if the object is still there or if it is no longer detected
+        if self.detection == None:
+            self.detection_check += 1
+            if self.detection_check >= 300:
+                self.state = 'starting'
+        else:
+            self.posCommand[0] = self.posCommand[0] + self.error*(9/16)*(math.pi/180)
+            self.arm_command_publisher()
+
+        # if it is not detected for 300 ticks, start searching again
+        # if it is detected, try to align with it
+
+
+        # self.rpms = [self.rpms[0] + self.error * 0.03, self.rpms[1] - self.error * 0.03]  # P control
+
+    # def tick_approach(self):
+    #     self.rpms = [30, 30]
+    #     if self.detection:
+    #         self.lost_time = 0
+    #         self.tick_align()
+    #         if self.depth < 0.4 and self.depth != 0:
+    #             self.state = 'done'
+    #     elif self.lost_time > 1.5:
+    #         self.state = 'search'
+    #     else:
+    #         self.lost_time += 1 / 30
+
+    # ---------------------------------------------------------------------------
+
+
 # --------------------------
 #	INVERSE KINEMATICS
 
@@ -306,7 +407,7 @@ class ArmGUI(ctk.CTk):
 
         return np.array(origins)  # (6, 3) points
 # --------------------------
-#	UPDATE ANNIMATION FUNCTION (right after forward kinematics) 
+#	UPDATE ANIMATION FUNCTION (right after forward kinematics)
     def update_robot_visualization(self):
         """Real-time 3D robot update"""
         try:
@@ -336,9 +437,21 @@ class ArmGUI(ctk.CTk):
 
         self.after(10, self.update_robot_visualization)
 
-# --------------------------
-#	MAIN FRAME
-    
+
+    def vect_compare(posCommand, posActual):
+        # print("Entered Vect Compare")
+        for i in range(len(posCommand)):
+            print(f"{posCommand} = {posActual}")
+            if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (
+                    float(posActual[i]) < (float(posCommand[i]) - 0.3)):
+                # print("Exiting Vect Compare: False")
+                return False
+        # print("Exiting Vect Compare: True")
+        return True
+
+    # --------------------------
+    # MAIN FRAME
+
     def main(self):
     
         ctk.set_appearance_mode('dark')
@@ -356,7 +469,7 @@ class ArmGUI(ctk.CTk):
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=0, minsize=300)
         self.grid_columnconfigure(1, weight=1)
-    
+
         camera_window = None
     
 # --------------------------
@@ -394,7 +507,7 @@ class ArmGUI(ctk.CTk):
         vel_frame =ctk.CTkFrame(left_frame)
         vel_frame.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
 # --------------------------
-#	MDOE INPUTS
+#	MODE INPUTS
         entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
         entry_1.pack(pady=5)
         entry_1.pack_forget()
@@ -486,9 +599,9 @@ class ArmGUI(ctk.CTk):
         self.canvas = canvas
         self.robot_lines = None
         self.joint_scatter = None
-		
+
 # --------------------------
-#	START REAL TIME ANNIMATION
+#	START REAL TIME ANIMATION
         self.after(10, lambda: self.update_robot_visualization())
         # self.update_robot_visualization()
     
@@ -567,7 +680,7 @@ class ArmGUI(ctk.CTk):
                         command=show_inputs).pack(anchor ='w', padx=10, pady=6)
     
 # --------------------------
-#	DISPLAY VALUES    
+#	DISPLAY VALUES
         tabview = ctk.CTkTabview(right_frame)
         tabview.grid(row=0, column=0, sticky='nsew', padx=8, pady=(8, 4))
     
@@ -581,7 +694,7 @@ class ArmGUI(ctk.CTk):
         coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=80)
         coordinate_frame.pack(fill="both", expand=True)
 
-		
+
         joint_count = [0]
         coordinate_count = [0]
     
@@ -633,7 +746,7 @@ class ArmGUI(ctk.CTk):
                     return
                 ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
 
-    
+
             else:
                 status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
     
@@ -674,15 +787,15 @@ class ArmGUI(ctk.CTk):
         ctk.CTkSwitch(vel_frame, text='ARM Velocity', command=vel, variable=switch_var, onvalue="on", offvalue="off").pack(pady=6, padx=10, fill='x')
 
 
-        def vect_compare(posCommand, posActual):
-            # print("Entered Vect Compare")
-            for i in range(len(posCommand)):
-                print(f"{posCommand} = {posActual}")
-                if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (float(posActual[i]) < (float(posCommand[i]) - 0.3)):
-                    # print("Exiting Vect Compare: False")
-                    return False
-            # print("Exiting Vect Compare: True")
-            return True
+        # def vect_compare(posCommand, posActual):
+        #     # print("Entered Vect Compare")
+        #     for i in range(len(posCommand)):
+        #         print(f"{posCommand} = {posActual}")
+        #         if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (float(posActual[i]) < (float(posCommand[i]) - 0.3)):
+        #             # print("Exiting Vect Compare: False")
+        #             return False
+        #     # print("Exiting Vect Compare: True")
+        #     return True
 
 # --------------------------
 #	FEEDBACK
@@ -695,6 +808,9 @@ class ArmGUI(ctk.CTk):
 
         velocity_label = ctk.CTkLabel(feedframe, text=f"Velocity Feedback: \n{self.velActual}")
         velocity_label.grid(row=1, column=0, pady=(0, 6))
+        self.after(10, lambda: self.update_feedback)
+
+
 # --------------------------
 #	RUN
         def run():
@@ -710,9 +826,9 @@ class ArmGUI(ctk.CTk):
             elif selected ==  2:
                 # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
-                    diff = vect_compare(self.posCommand, self.posActual)
+                    diff = self.vect_compare(self.posCommand, self.posActual)
                     while (diff == False) and (selected == 2):
-                        diff = vect_compare(self.posCommand, self.posActual)
+                        diff = self.vect_compare(self.posCommand, self.posActual)
                     # print(f"Vect Compare Passed, writing joint values {self.posCommand_list[i]}")
                     for j in range(5):
                         self.posCommand[j] = float(self.posCommand_list[i][j])
