@@ -35,7 +35,7 @@ class ArmGUI(ctk.CTk):
         self.switch = False
         self.posCommand_list = []
         self.xyzCommand_list = []
-        self.state = 'starting' # When nothing detected through NanoOwl yet
+        self.stater = 'starting' # When nothing detected through NanoOwl yet
         self.detection = None
         self.detection_center = None
         self.depth = 10000
@@ -193,10 +193,10 @@ class ArmGUI(ctk.CTk):
         self.posActual = list(msg.position)
         self.velActual = list(msg.velocity)
 
-    def update_feedback(self):
-        self.force_label.configure(text=f"Force sensor: {self.posActual[5]}")
-        self.velocity_label.configure(text=f"Velocity Feedback: {self.posActual[0]}")
-        self.after(10, self.update_feedback)
+    # def update_feedback(self):
+    #     self.force_label.configure(text=f"Force sensor: {self.posActual[5]}")
+    #     self.velocity_label.configure(text=f"Velocity Feedback: {self.posActual[0]}")
+    #     self.after(10, self.update_feedback)
  
     def set_slider_joints(self, degrees: list):
         with self.slider_lock:
@@ -216,23 +216,23 @@ class ArmGUI(ctk.CTk):
         self.query_publisher.publish(String(data=f"[{self.search_object}]"))
 
         # self.rpms = [0.0, 0.0]
-        if self.state == 'starting':
+        if self.stater == 'starting':
             self.tick_start()
-        elif self.state == 'searching':
+        elif self.stater == 'searching':
             self.tick_search()
-        # elif self.state == 'approach':
+        # elif self.stater == 'approach':
         #     self.tick_approach()
-        # elif self.state == 'done':
+        # elif self.stater == 'done':
         #     self.rpm_publisher.publish(RPM(theta_dot_left=0.0, theta_dot_right=0.0))
         #     rclpy.try_shutdown()
-        elif self.state == 'tracking':
+        elif self.stater == 'tracking':
             self.tick_align()
 
 
         # self.rpms[0] = min(max(self.rpms[0], -50), 50)
         # self.rpms[1] = min(max(self.rpms[1], -50), 50)
 
-        # print(f"{self.state} | RPM: {self.rpms} | DEPTH: {self.depth} | LT: {self.lost_time}")
+        # print(f"{self.stater} | RPM: {self.rpms} | DEPTH: {self.depth} | LT: {self.lost_time}")
 
         # self.rpm_publisher.publish(RPM(theta_dot_left=float(self.rpms[0]), theta_dot_right=float(self.rpms[1])))
 
@@ -241,19 +241,19 @@ class ArmGUI(ctk.CTk):
         self.posCommand = [2.9, 0, 0, 1.35, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
         self.arm_command_publisher()
         if self.vect_compare() == True:
-            self.state = 'searching'
+            self.stater = 'searching'
         else:
-            self.state = 'starting'
+            self.stater = 'starting'
 
     def tick_search(self):
 
         self.posCommand[0] = self.posCommand[0] - 0.015 # ~20 deg/s
         if self.posCommand[0] < -2.9:
-            self.state = 'starting'
+            self.stater = 'starting'
         else:
             self.arm_command_publisher()
             if self.detection:
-                self.state = 'tracking'
+                self.stater = 'tracking'
 
     def tick_align(self):
         self.error = self.detection_center[0] - 424  # 424 is image center on ARM camera
@@ -261,7 +261,7 @@ class ArmGUI(ctk.CTk):
         if self.detection == None:
             self.detection_check += 1
             if self.detection_check >= 300:
-                self.state = 'starting'
+                self.stater = 'starting'
         else:
             self.posCommand[0] = self.posCommand[0] + self.error*(9/16)*(math.pi/180)
             self.arm_command_publisher()
@@ -278,9 +278,9 @@ class ArmGUI(ctk.CTk):
     #         self.lost_time = 0
     #         self.tick_align()
     #         if self.depth < 0.4 and self.depth != 0:
-    #             self.state = 'done'
+    #             self.stater = 'done'
     #     elif self.lost_time > 1.5:
-    #         self.state = 'search'
+    #         self.stater = 'search'
     #     else:
     #         self.lost_time += 1 / 30
 
@@ -490,7 +490,20 @@ class ArmGUI(ctk.CTk):
         except Exception as e:
             print(f"[Vis Error] {e}")
 
+
         self.after(10, self.update_robot_visualization)
+
+    def update_robot_feedback(self):
+        # Update data
+        forceSensor = self.posActual[5]
+        velocities = self.velActual
+        
+        # Update existing label text
+        self.force_label.configure(text=f"Force Sensor: \n{forceSensor}")
+        self.velocity_label.configure(text=f"Velocity Feedback: \n{velocities}")
+        
+        # Schedule next update
+        self.after(10, self.update_robot_feedback)
 
 
     def vect_compare(self):
@@ -659,8 +672,10 @@ class ArmGUI(ctk.CTk):
         self.joint_scatter = None
 
 # --------------------------
-#	START REAL TIME ANIMATION
+#	START REAL TIME ANIMATION AND FEEDBACK
         self.after(10, lambda: self.update_robot_visualization())
+        self.after(10, lambda: self.update_robot_feedback())
+        
         # self.update_robot_visualization()
     
     
@@ -858,15 +873,15 @@ class ArmGUI(ctk.CTk):
 # --------------------------
 #	FEEDBACK
 
-        feedframe = ctk.CTkFrame(left_frame)
-        feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
+        self.feedframe = ctk.CTkFrame(left_frame)
+        self.feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
 
-        force_label = ctk.CTkLabel(feedframe, text=f"Force sensor: \n{self.posActual[5]}")
-        force_label.grid(row=0, column=0, pady=(0, 6))
+        self.force_label = ctk.CTkLabel(self.feedframe, text=f"Force sensor: \n0")
+        self.force_label.grid(row=0, column=0, pady=(0, 6))
 
-        velocity_label = ctk.CTkLabel(feedframe, text=f"Velocity Feedback: \n{self.velActual}")
-        velocity_label.grid(row=1, column=0, pady=(0, 6))
-        self.after(10, lambda: self.update_feedback)
+        self.velocity_label = ctk.CTkLabel(self.feedframe, text=f"Velocity Feedback: \n0")
+        self.velocity_label.grid(row=1, column=0, pady=(0, 6))
+        # self.after(10, lambda: self.update_feedback)
 
 
 # --------------------------
