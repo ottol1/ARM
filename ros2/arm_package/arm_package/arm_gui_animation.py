@@ -34,7 +34,9 @@ class ArmGUI(ctk.CTk):
         self.switch = False
         self.posCommand_list = []
         self.xyzCommand_list = []
-
+        self.state = 'search' # When nothing detected through NanoOwl yet
+        self.depth = 10000
+        self.error = 1000
  
 #	publish to the arm_controller/controller_state topic
  
@@ -51,7 +53,20 @@ class ArmGUI(ctk.CTk):
             'gripper_controller/controller_state',
             10
         )
- 
+
+#	publish to the joint_states topic
+        self.publisher = self.node.create_publisher(
+            JointState,
+            '/joint_states',
+            10
+        )
+#   publish input query to NanoOwl
+        self.query_publisher = self.node.create_publisher(
+            String,
+            '/nanoowl/input_query',
+            10
+        )
+
 #	subscribe to the joint_states topic
  
         self.state_subscriber = self.node.create_subscription(
@@ -61,18 +76,22 @@ class ArmGUI(ctk.CTk):
             10
         )
 
-#	publish to the joint_states topic
-        self.publisher = self.node.create_publisher(
-            JointState,
-            '/joint_states',  # consider /rviz/moveit/update_custom_goal_state/joint_state
+        # subscribe to selected depth image for NanoOwl
+        self.depth_image_subscription = self.node.create_subscription(
+            Image,
+            '/odd_arm_cv/selected_depth_image',
+            self.update_depth_image,
             10
         )
 
-        self.query_publisher = self.node.create_publisher(
-            String,
-            '/nanoowl/input_query',
+        # subscribe to NanoOwl detections topic
+        self.detection_subscription = self.node.create_subscription(
+            Detection2DArray,
+            '/nanoowl/output_detections',
+            self.update_detections,
             10
         )
+
 
     def arm_command_publisher(self):
         command = JointTrajectoryControllerState()
@@ -398,13 +417,13 @@ class ArmGUI(ctk.CTk):
         JOINT_LIMITS[0] = (-math.pi, math.pi)
         self.joint_sliders       = []
         slider_value_labels = []
-        for i, (low, high) in enumerate(JOINT_LIMITS):
+        for i, (low, high) in enumerate(JOINT_LIMITS): # Still need to change limits display for joint 1
             s = ctk.CTkFrame(slider_frame, fg_color='transparent')
             s.pack(fill='x', padx=14, pady=3)
             ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
-            ctk.CTkLabel(s, text='-pi', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+            ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
             ).pack(side='left', padx=(4, 2))
-            ctk.CTkLabel(s, text="pi", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+            ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
             ).pack(side='right', padx=(2, 4))
 
             slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
