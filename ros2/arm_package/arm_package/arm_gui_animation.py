@@ -183,8 +183,9 @@ class ArmGUI(ctk.CTk):
 
     def destroy_node(self):
         pass
-    # --------------------------
-    # ------------------------ inverse kinematics function ------------------------
+# --------------------------
+#	INVERSE KINEMATICS
+
     def xyz_inverse(self, x: float, y: float, z: float):
         """
         Solves for inverse kinematics of ARM
@@ -242,8 +243,8 @@ class ArmGUI(ctk.CTk):
         
         return [theta1, theta2, theta3, theta4, theta5, D]
     
-    
-    # ------------------------ forward kinematics function ------------------------
+# --------------------------
+#	FORWARD KINEMATICS
     def forward_kinematics(self):# joints):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
@@ -304,9 +305,8 @@ class ArmGUI(ctk.CTk):
             origins.append(T[:3, 3].copy())
 
         return np.array(origins)  # (6, 3) points
-# -----------------------------------------------------------------------------------------------
-
-# ---------------------- update function (right after forward kinematics) -----------------------
+# --------------------------
+#	UPDATE ANNIMATION FUNCTION (right after forward kinematics) 
     def update_robot_visualization(self):
         """Real-time 3D robot update"""
         try:
@@ -335,10 +335,9 @@ class ArmGUI(ctk.CTk):
             print(f"[Vis Error] {e}")
 
         self.after(10, self.update_robot_visualization)
-        # ---------------------------------------------------------------------------------------------------
 
-    # --------------------------
-    # main frame
+# --------------------------
+#	MAIN FRAME
     
     def main(self):
     
@@ -358,13 +357,11 @@ class ArmGUI(ctk.CTk):
         self.grid_columnconfigure(0, weight=0, minsize=300)
         self.grid_columnconfigure(1, weight=1)
     
-        
         camera_window = None
     
-        # --------------------------
-        # left frame
-    
-    
+# --------------------------
+#	LEFT FRAME
+
         left_frame = ctk.CTkFrame(self,width=280)
         left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12,6))
         left_frame.grid_columnconfigure(0, weight=1)
@@ -383,8 +380,8 @@ class ArmGUI(ctk.CTk):
         text_1.configure(state="disabled")
     
         mode = ctk.IntVar(value=1)
-
-
+# --------------------------
+#	FRAMES
         radframe = ctk.CTkFrame(left_frame)
         radframe.grid(row=2, column=0, padx=14, pady=6, sticky='ew')
         inframe = ctk.CTkFrame(left_frame)
@@ -396,8 +393,8 @@ class ArmGUI(ctk.CTk):
         slider_frame.pack(fill='x', padx=4, pady=4)
         vel_frame =ctk.CTkFrame(left_frame)
         vel_frame.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
-
-        # mode inputs
+# --------------------------
+#	MDOE INPUTS
         entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
         entry_1.pack(pady=5)
         entry_1.pack_forget()
@@ -446,9 +443,8 @@ class ArmGUI(ctk.CTk):
                 slider_value_labels[i].configure(text='0°')
             self.set_slider_joints([0.0] * 5)
             status_label.configure(text='Sliders reset to 0°')
-        # --------------------------
-        # right frame
-    
+# --------------------------
+# RIGHT FRAME
         right_frame = ctk.CTkFrame(self)
         right_frame.grid(row=0, column=1, sticky='nsew', padx=(6,12), pady=(12,6))
     
@@ -462,8 +458,8 @@ class ArmGUI(ctk.CTk):
         graph.grid_rowconfigure(1, weight=1)
         graph.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(graph, text='Animation').grid(row=0, column=0, pady=(6,2))
-
-        # ------------------------ 3D widget (in main function - right frame) -------------------------------
+# --------------------------
+#	3D WIDGET (in main function - right frame)
         fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
         ax = fig.add_subplot(111, projection='3d')
         ax.set_facecolor('#1e1e1e')
@@ -490,17 +486,15 @@ class ArmGUI(ctk.CTk):
         self.canvas = canvas
         self.robot_lines = None
         self.joint_scatter = None
-	    # ---------------------------------------------------------------------------------------------------
-
-	    # ----------------- calling the function (right after widget block ----------------------------------
-    	# Start real-time animation
+		
+# --------------------------
+#	START REAL TIME ANNIMATION
         self.after(10, lambda: self.update_robot_visualization())
         # self.update_robot_visualization()
     
     
-        # --------------------------
-        # functions
-    
+# --------------------------
+#	SHOW VALUES
         def show_inputs():
             selected = mode.get()
             entry_1.pack_forget()
@@ -521,20 +515,18 @@ class ArmGUI(ctk.CTk):
                     c.pack()
             elif selected == 4:
                 slider_frame.pack(fill='x', padx=4, pady=4)
-
-    
-    
-        # --------------------------
+# --------------------------
+#	STATUS UPDATES
         status_label = ctk.CTkLabel(right_frame, text='', text_color='gray')
         status_label.grid(row=3, column=0, pady=(0, 6))
     
-        # --------------------------
+# --------------------------
+#	FRAME
         button_frame = ctk.CTkFrame(right_frame, fg_color='transparent')
         button_frame.grid(row=1, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
         button_frame.grid_columnconfigure(tuple(range(6)), weight=1)
-
-    
-        # --------------------------
+# --------------------------
+#	VALIDATION
         def validate(values):
             try:
                 return all(v != '' and float(v) for v in values)
@@ -555,8 +547,8 @@ class ArmGUI(ctk.CTk):
             except IOError as e:
                 status_label.configure(text=f'File error: {e}', text_color='red')
     
-        # --------------------------
-        # radio buttons
+# --------------------------
+#	RADIO BUTTONS
     
         ctk.CTkRadioButton(radframe, text="Mode 1",
                         variable=mode, value=1,
@@ -574,7 +566,8 @@ class ArmGUI(ctk.CTk):
                         variable=mode, value=4,
                         command=show_inputs).pack(anchor ='w', padx=10, pady=6)
     
-    
+# --------------------------
+#	DISPLAY VALUES    
         tabview = ctk.CTkTabview(right_frame)
         tabview.grid(row=0, column=0, sticky='nsew', padx=8, pady=(8, 4))
     
@@ -587,16 +580,8 @@ class ArmGUI(ctk.CTk):
         joint_frame.pack(fill="both", expand=True)
         coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=80)
         coordinate_frame.pack(fill="both", expand=True)
-    
-    
-        # graph = ctk.CTkFrame(right_frame)
-        # graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
-        # graph.grid_rowconfigure(1, weight = 1)
-        # graph.grid_columnconfigure(0, weight = 1)
-        # ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
-    
-    
-        # --------------------------
+
+		
         joint_count = [0]
         coordinate_count = [0]
     
@@ -610,11 +595,8 @@ class ArmGUI(ctk.CTk):
                     return
 
                 self.posCommand_list.append(vals)
-
                 joint_count[0] += 1
-    
                 ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
-    
                 status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}",text_color='green')
                 for j in joint_entries: j.delete(0, 'end')
 
@@ -650,16 +632,15 @@ class ArmGUI(ctk.CTk):
                     status_label.configure(text='Invalid or missing values.', text_color='red')
                     return
                 ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
-    
-    
+
     
             else:
                 status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
     
         ctk.CTkButton(add_frame, text='Add Values', command=add_values).pack(pady=6, padx=10, fill='x')
 
-        # --------------------------
-        # velocity
+# --------------------------
+#	VELOCITY
         VEL_LIMITS = [(0, 100)] * 5   # TODO: set real per-joint limits
         self.vel_sliders       = []
         vel_value_labels = []
@@ -703,9 +684,8 @@ class ArmGUI(ctk.CTk):
             # print("Exiting Vect Compare: True")
             return True
 
-
-            # --------------------------
-            # run
+# --------------------------
+#	FRAMES
 
         feedframe = ctk.CTkFrame(left_frame)
         feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
@@ -715,7 +695,8 @@ class ArmGUI(ctk.CTk):
 
         velocity_label = ctk.CTkLabel(feedframe, text=f"Velocity Feedback: \n{self.velActual}")
         velocity_label.grid(row=1, column=0, pady=(0, 6))
-
+# --------------------------
+#	RUN
         def run():
             selected = mode.get()
     
@@ -753,10 +734,9 @@ class ArmGUI(ctk.CTk):
                 for i in range (5):
                     self.posCommand[i] = float(self.joint_sliders[i].get())
                 self.arm_command_publisher()
-        # --------------------------
 
-    
-        # --------------------------
+# --------------------------
+#	BUTTON FUNCTIONS
         def open_gripper():
             #node.publish_gripper('open')
             self.posCommand[5] = 0.0
@@ -776,7 +756,8 @@ class ArmGUI(ctk.CTk):
         #         camera_window.focus()
     
             
-        # --------------------------
+# --------------------------
+#	BUTTONS
         for col, (txt, cmd, kw) in enumerate([
             ('Run',           run,          {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
             ('Open Gripper',  open_gripper, {}),
@@ -791,7 +772,7 @@ class ArmGUI(ctk.CTk):
         return self
     
 # --------------------------
-
+#	END FUNCTIONS
     def run_ui(self):
         def ros_spin():
             rclpy.spin(self.node)
