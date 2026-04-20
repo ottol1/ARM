@@ -41,8 +41,9 @@ class ArmGUI(ctk.CTk):
         self.depth = 10000
         self.error = 1000
         self.lost_time = 0
-        self.tick_timer = self.create_timer(1 / 30, self.tick) # Need to find an alternative to this
+        # self.tick_timer = self.node.create_timer(1 / 30, self.tick) # Need to find an alternative to this
         self.detection_check = 0
+        self.search_object = ""
 
 #	publish to the arm_controller/controller_state topic
  
@@ -212,6 +213,8 @@ class ArmGUI(ctk.CTk):
 
     def tick(self):
 
+        self.query_publisher.publish(String(data=f"[{self.search_object}]"))
+
         # self.rpms = [0.0, 0.0]
         if self.state == 'starting':
             self.tick_start()
@@ -237,7 +240,7 @@ class ArmGUI(ctk.CTk):
         print("start ")
         self.posCommand = [2.9, 0, 0, 1.35, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
         self.arm_command_publisher()
-        if self.vect_compare(self.posCommand, self.posActual) == True:
+        if self.vect_compare() == True:
             self.state = 'searching'
         else:
             self.state = 'starting'
@@ -438,12 +441,12 @@ class ArmGUI(ctk.CTk):
         self.after(10, self.update_robot_visualization)
 
 
-    def vect_compare(posCommand, posActual):
+    def vect_compare(self):
         # print("Entered Vect Compare")
-        for i in range(len(posCommand)):
-            print(f"{posCommand} = {posActual}")
-            if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (
-                    float(posActual[i]) < (float(posCommand[i]) - 0.3)):
+        for i in range(len(self.posCommand)):
+            print(f"{self.posCommand} = {self.posActual}")
+            if (float(self.posActual[i]) > (float(self.posCommand[i]) + 0.3)) or (
+                    float(self.posActual[i]) < (float(self.posCommand[i]) - 0.3)):
                 # print("Exiting Vect Compare: False")
                 return False
         # print("Exiting Vect Compare: True")
@@ -823,12 +826,15 @@ class ArmGUI(ctk.CTk):
                     return
                 status_label.configure(text=f'Target: {obj}', text_color='green')
                 self.query_publisher.publish(String(data=f'[{obj}]'))
+                self.search_object = obj
+                self.tick_timer = self.node.create_timer(1 / 30, self.tick)
+
             elif selected ==  2:
                 # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
-                    diff = self.vect_compare(self.posCommand, self.posActual)
+                    diff = self.vect_compare()
                     while (diff == False) and (selected == 2):
-                        diff = self.vect_compare(self.posCommand, self.posActual)
+                        diff = self.vect_compare()
                     # print(f"Vect Compare Passed, writing joint values {self.posCommand_list[i]}")
                     for j in range(5):
                         self.posCommand[j] = float(self.posCommand_list[i][j])
