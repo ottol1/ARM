@@ -4,21 +4,27 @@
 import threading
 import customtkinter as ctk
 import math
+
+# UI Animation
+import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
 
 # ROS
-#import rclpy
-#from rclpy.node import Node
-#from control_msgs.msg import JointTrajectoryControllerState
-#from trajectory_msgs.msg import JointTrajectoryPoint
-#from builtin_interfaces.msg import Duration
-#from sensor_msgs.msg import JointState
+import rclpy
+from rclpy.node import Node
+from control_msgs.msg import JointTrajectoryControllerState
+from trajectory_msgs.msg import JointTrajectoryPoint
+from builtin_interfaces.msg import Duration
+from sensor_msgs.msg import JointState
+from sensor_msgs.msg import Image
+# from vision_msgs.msg import Detection2D, Detection2DArray
+from std_msgs.msg import String
 
-#class ArmGUI(Node, ctk.CTk):
+class ArmGUI(ctk.CTk):
     def __init__(self):
-        super().__init__('arm_command_node')
+        super().__init__()
+        self.node = rclpy.create_node('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
         self.posCommand=[0.0]*6
@@ -26,12 +32,15 @@ import numpy as np
         self.posActual = [0.0]*6
         self.velActual = [0.0]*6
         self.switch = False
-        self.posCommand_list = [0.0]*5
-
+        self.posCommand_list = []
+        self.xyzCommand_list = []
+        self.state = 'search' # When nothing detected through NanoOwl yet
+        self.depth = 10000
+        self.error = 1000
  
 #	publish to the arm_controller/controller_state topic
  
-        self.arm_publisher = self.create_publisher(
+        self.arm_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             '/arm_controller/controller_state',
             10
@@ -39,25 +48,54 @@ import numpy as np
  
 #	publish to the gripper_controller/controller_state topic
  
-        self.gripper_publisher = self.create_publisher(
+        self.gripper_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             'gripper_controller/controller_state',
             10
         )
- 
-#	subscribe to the joint_state topic
- 
-        self.state_subscriber = self.create_subscription(
+
+#	publish to the joint_states topic
+        self.publisher = self.node.create_publisher(
             JointState,
-            '/joint_state',
+            '/joint_states',
+            10
+        )
+#   publish input query to NanoOwl
+        self.query_publisher = self.node.create_publisher(
+            String,
+            '/nanoowl/input_query',
+            10
+        )
+
+#	subscribe to the joint_states topic
+ 
+        self.state_subscriber = self.node.create_subscription(
+            JointState,
+            '/joint_states',
             self.arm_state_subscriber,
             10
         )
-  
+
+        # subscribe to selected depth image for NanoOwl
+        # self.depth_image_subscription = self.node.create_subscription(
+        #     Image,
+        #     '/odd_arm_cv/selected_depth_image',
+        #     self.update_depth_image,
+        #     10
+        # )
+
+        # subscribe to NanoOwl detections topic
+        # self.detection_subscription = self.node.create_subscription(
+        #     Detection2DArray,
+        #     '/nanoowl/output_detections',
+        #     self.update_detections,
+        #     10
+        # )
+
 
     def arm_command_publisher(self):
         command = JointTrajectoryControllerState()
-
+        command2 = JointState()
         if self.switch == True:
             for i in range(6):
                 self.velCommand[i] = float(self.vel_sliders[0].get())
@@ -65,7 +103,7 @@ import numpy as np
             self.velCommand=[0.2]*6
 
         # joint names
-        command.joint_names = ['joint1','joint2','joint3','joint4','joint5']
+        command.joint_names = ['shoulder_joint','upperarm_joint','forearm_joint','wrist_joint','frame_joint']
 
         # desired, actual, error must be JointTrajectoryPoint
         desired = JointTrajectoryPoint()
@@ -94,7 +132,7 @@ import numpy as np
         command.error = error
 
         self.arm_publisher.publish(command)
-
+        self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic
 
         grip_command = JointTrajectoryControllerState()
 
@@ -146,20 +184,132 @@ import numpy as np
     def destroy_node(self):
         pass
     # --------------------------
-    # ------------------------ forward kinematics function ------------------------
-    def forward_kinematics(joints_deg):
-    	t1, t2, t3, t4, t5, t6 = np.deg2rad(joints_deg)
+    # ------------------------ inverse kinematics function 1------------------------
+    def xyz_inverse(self, x: float, y: float, z: float):
+        """
+        Solves for inverse kinematics of ARM
+        
+        Inputs: target position (x, y, z) in mm
+        Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
+        
+        If the target is outside the workspace (|D| > 1), ARM points to the object
+        """
+        # Link lengths
+        d1 = 63.0 
+        a2 = 141.23 
+        d2 = 2.0
+        a3 = 145.3
+        d5 = 161.74
+
+        # Desired wrist angle thetad (radians) in world frame
+        radial = math.sqrt(x**2 + y**2)
+        thetad = math.atan2(z - d1, radial)
+        print(thetad)
+        # Effective radial distance after base offset d2
+        xy_dist2 = x**2 + y**2
+        a = math.sqrt(xy_dist2 - d2**2)
+        theta1 = math.atan2(y, x) - math.atan2(d2, a)
+
+        # variables describing shoulder and elbow positions
+        r = z - d1 - ((d5) * math.sin(thetad))
+        s = a - ((d5) * math.cos(math.fabs(thetad)))
+        D = (s**2 + r**2 - a2**2 - a3**2) / (2 * a3 * a2)
+
+        # Check for reachable solution
+        if abs(D) > 1.0:
+            # Outside workspace
+            theta3 = 0.0
+            theta2 = math.atan2(z-d1, radial)
+            theta4 = 0.0
+        else:
+            # Inverse kinematics
+            sqrt_term = math.sqrt(1.0 - D**2)
+            theta3 = math.atan2(-sqrt_term, D)
+            
+            theta2_temp = math.atan2(r, s)
+            atan_term = math.atan2(
+                a3 * math.sin(theta3),
+                a2 + (a3 * math.cos(theta3))
+            )
+            
+            theta2 = theta2_temp - atan_term
+            
+            theta4 = -theta2 - theta3 + thetad
+
+        # theta5 is fixed at 0
+        theta5 = 0.0
+        theta2 = (math.pi/2) - theta2 
+        
+        return [theta1, theta2, theta3, -theta4, theta5, D]
     
-    	# New dimensions from your latest script
-    	d1 = 57.48
-    	a2 = 140.05
-    	d2 = 2.0      # offset in A2
-    	a3 = 143.19
-    	a4 = 11.0
-    	d5 = 151.74
+      # ------------------------ inverse kinematics function 2------------------------
+    def xyz_inverse2(self, x: float, y: float, z: float):
+        """
+        Solves for inverse kinematics of ARM when theta2 cant go past pi/2
+        
+        Inputs: target position (x, y, z) in mm
+        Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
+        
+        If the target is outside the workspace (|D| > 1), ARM points to the object
+        """
+        # Link lengths
+        d1 = 63.0 
+        a2 = 141.23 
+        d2 = 2.0
+        a3 = 145.3
+        d5 = 161.74
+
+        # Effective radial distance after base offset d2
+        xy_dist2 = x**2 + y**2
+        a = math.sqrt(xy_dist2 - d2**2)
+        theta1 = math.atan2(y, x) - math.atan2(d2, a)
+
+        # theta 2 cant go below zero (past pi/2 for actual arm)
+        theta2 = 0.0
+
+        # variables describing elbow and wrist positions
+        r = z - d1
+        s = a - a2
+        D = (s**2 + r**2 - a3**2 - a4**2) / (2 * a4 * a3)
+
+        # Check for reachable solution
+        if abs(D) > 1.0:
+            # Outside workspace
+            theta3 = math.atan2(z-d1, s)
+            theta4 = 0.0
+        else:
+            # Inverse kinematics
+            sqrt_term = math.sqrt(1.0 - D**2)
+            theta4 = math.atan2(-sqrt_term, D)
+            
+            theta3_temp = math.atan2(r, s)
+            atan_term = math.atan2(
+                a4 * math.sin(theta4),
+                a3 + (a4 * math.cos(theta4))
+            )
+            
+            theta3 = theta3_temp - atan_term
+
+        # theta5 is fixed at 0
+        theta5 = 0.0
+        theta2 = (math.pi/2) - theta2
+        
+        return [theta1, theta2, theta3, -theta4, theta5, D]
+      
+    # ------------------------ forward kinematics function ------------------------
+    def forward_kinematics(self):# joints):
+        t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
+        t2 = math.pi/2 - t2
+        t4 = -t4
+        d1 = 57.48 # recommend 63.0
+        a2 = 140.05 # recommend 141.23
+        d2 = 2.0      # offset in A2
+        a3 = 143.19 # recommend 145.3
+        a4 = 11.0 # recommend removing a4
+        d5 = 151.74 # d5 in IK function is 161.74
 
     	# A1
-    	A1 = np.array([
+        A1 = np.array([
             [np.cos(t1), 0,          np.sin(t1), 0],
             [np.sin(t1), 0,         -np.cos(t1), 0],
             [0,          1,          0,          d1],
@@ -167,7 +317,7 @@ import numpy as np
     	])
 
     	# A2 (with d2 offset)
-    	A2 = np.array([
+        A2 = np.array([
             [np.cos(t2), -np.sin(t2), 0, a2*np.cos(t2)],
             [np.sin(t2),  np.cos(t2), 0, a2*np.sin(t2)],
             [0,           0,          1, d2],
@@ -175,7 +325,7 @@ import numpy as np
     	])
 
     	# A3
-    	A3 = np.array([
+        A3 = np.array([
             [np.cos(t3), -np.sin(t3), 0, a3*np.cos(t3)],
             [np.sin(t3),  np.cos(t3), 0, a3*np.sin(t3)],
             [0,           0,          1, 0],
@@ -183,7 +333,7 @@ import numpy as np
     	])
 
     	# A4
-    	A4 = np.array([
+        A4 = np.array([
             [np.cos(np.pi/2 + t4), 0,          np.sin(np.pi/2 + t4), a4*np.cos(t4)],
             [np.sin(np.pi/2 + t4), 0,         -np.cos(np.pi/2 + t4), a4*np.sin(t4)],
             [0,                    1,          0,                    0],
@@ -191,7 +341,7 @@ import numpy as np
     	])
 
         # A5
-    	A5 = np.array([
+        A5 = np.array([
             [np.cos(t5), -np.sin(t5), 0, 0],
             [np.sin(t5),  np.cos(t5), 0, 0],
             [0,           0,          1, d5],
@@ -199,45 +349,46 @@ import numpy as np
     	])
 
     	# Chain
-    	T = np.eye(4)
-    	origins = [T[:3, 3].copy()]
+        T = np.eye(4)
+        origins = [T[:3, 3].copy()]
 
-    	for A in [A1, A2, A3, A4, A5]:
+        for A in [A1, A2, A3, A4, A5]:
             T = T @ A
             origins.append(T[:3, 3].copy())
 
-    	return np.array(origins)  # (6, 3) points
+        return np.array(origins)  # (6, 3) points
 # -----------------------------------------------------------------------------------------------
 
-# ---------------------- update function (right after forward kinimatics) -----------------------
-    def update_robot_visualization():
-    	"""Real-time 3D robot update"""
-    	try:
-            joints_deg = np.rad2deg(self.posActual)
-            points = forward_kinematics(joints_deg)
-            ax = app.ax
+# ---------------------- update function (right after forward kinematics) -----------------------
+    def update_robot_visualization(self):
+        """Real-time 3D robot update"""
+        try:
+            # joints_deg = np.rad2deg(self.posActual)
+            points = self.forward_kinematics() # self.posActual) # joints_deg)
+            ax = self.ax
 
             # Clear previous drawings
-            if hasattr(app, 'robot_lines') and app.robot_lines is not None:
-             	app.robot_lines.remove()
-            if hasattr(app, 'joint_scatter') and app.joint_scatter is not None:
-            	app.joint_scatter.remove()
+            if hasattr(self, 'robot_lines') and self.robot_lines is not None:
+                self.robot_lines.remove()
+            if hasattr(self, 'joint_scatter') and self.joint_scatter is not None:
+                self.joint_scatter.remove()
+            if hasattr(self, 'end_effector') and self.end_effector is not None:
+                self.end_effector.remove()
 
             # Draw robot
-            app.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
+            self.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
                                       color='#00ddff', linewidth=6, solid_capstyle='round')[0]
-            app.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
+            self.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
                                            color='#ffaa00', s=120)
             # End-effector highlight
-            ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
+            self.end_effector = ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
 
-            app.canvas.draw_idle()
-    	except Exception as e:
+            self.canvas.draw_idle()
+        except Exception as e:
             print(f"[Vis Error] {e}")
 
-    	app.after(50, lambda: update_robot_visualization())
-# ---------------------------------------------------------------------------------------------------
-
+        self.after(10, self.update_robot_visualization)
+        # ---------------------------------------------------------------------------------------------------
 
     # --------------------------
     # main frame
@@ -247,18 +398,18 @@ import numpy as np
         ctk.set_appearance_mode('dark')
         ctk.set_default_color_theme('blue')
     
-        self.app = ctk.CTk()
-        self.app.lift()
-        self.app.focus_force()
-        self.app.geometry('1000x680')
-        self.app.title('ARM user control')
+        
+        self.lift()
+        self.focus_force()
+        self.geometry('1000x680')
+        self.title('ARM user control')
         #app.eval('tk::PlaceWindow . center')
-        self.app.resizable(True, True)
+        self.resizable(True, True)
     
-        self.app.grid_rowconfigure(0, weight=1)
-        self.app.grid_rowconfigure(1, weight=0)
-        self.app.grid_columnconfigure(0, weight=0, minsize=300)
-        self.app.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_columnconfigure(0, weight=0, minsize=300)
+        self.grid_columnconfigure(1, weight=1)
     
         
         camera_window = None
@@ -267,7 +418,7 @@ import numpy as np
         # left frame
     
     
-        left_frame = ctk.CTkFrame(self.app,width=280)
+        left_frame = ctk.CTkFrame(self,width=280)
         left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12,6))
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_propagate(False)
@@ -319,13 +470,13 @@ import numpy as np
         JOINT_LIMITS[0] = (-math.pi, math.pi)
         self.joint_sliders       = []
         slider_value_labels = []
-        for i, (low, high) in enumerate(JOINT_LIMITS):
+        for i, (low, high) in enumerate(JOINT_LIMITS): # Still need to change limits display for joint 1
             s = ctk.CTkFrame(slider_frame, fg_color='transparent')
             s.pack(fill='x', padx=14, pady=3)
             ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
-            ctk.CTkLabel(s, text='-pi', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+            ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
             ).pack(side='left', padx=(4, 2))
-            ctk.CTkLabel(s, text="pi", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+            ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
             ).pack(side='right', padx=(2, 4))
 
             slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
@@ -351,7 +502,7 @@ import numpy as np
         # --------------------------
         # right frame
     
-        right_frame = ctk.CTkFrame(self.app)
+        right_frame = ctk.CTkFrame(self)
         right_frame.grid(row=0, column=1, sticky='nsew', padx=(6,12), pady=(12,6))
     
         right_frame.grid_columnconfigure(0, weight=1)
@@ -359,40 +510,46 @@ import numpy as np
         right_frame.grid_rowconfigure(1, weight=0)  
         right_frame.grid_rowconfigure(2, weight=0)
         right_frame.grid_rowconfigure(3, weight=0)
+        graph = ctk.CTkFrame(right_frame)
+        graph.grid(row=2, column=0, sticky='nsew', padx=8, pady=(4,4))
+        graph.grid_rowconfigure(1, weight=1)
+        graph.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(graph, text='Animation').grid(row=0, column=0, pady=(6,2))
+
+        # ------------------------ 3D widget (in main function - right frame) -------------------------------
+        fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_facecolor('#1e1e1e')
     
-	# ------------------------ 3D widget (in main function - right frame) -------------------------------
-    	fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
-    	ax = fig.add_subplot(111, projection='3d')
-    	ax.set_facecolor('#1e1e1e')
-    
-    	canvas = FigureCanvasTkAgg(fig, master=app)
-    	canvas.get_tk_widget().grid(row=2, column=0, columnspan=2, sticky='nsew', padx=12, pady=8)
-    
+        canvas = FigureCanvasTkAgg(fig, master=graph)
+        canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew', padx=8, pady=8)
+
     	# Styling
-    	ax.set_xlabel('X (mm)', color='white')
-    	ax.set_ylabel('Y (mm)', color='white')
-    	ax.set_zlabel('Z (mm)', color='white')
-    	ax.set_title('5-DOF Robot Arm - Real Time', color='white', pad=15)
-    	ax.grid(True, alpha=0.3)
+        ax.set_xlabel('X (mm)', color='white')
+        ax.set_ylabel('Y (mm)', color='white')
+        ax.set_zlabel('Z (mm)', color='white')
+        ax.set_title('5-DOF Robot Arm - Real Time', color='white', pad=15)
+        ax.grid(True, alpha=0.3)
     
     	# Wide view so base is in center and full 360° rotation is visible
-    	ax.set_xlim(-300, 300)
-    	ax.set_ylim(-300, 300)
-    	ax.set_zlim(0, 600)
-    	ax.view_init(elev=25, azim=-60)
+        ax.set_xlim(-400, 400)
+        ax.set_ylim(-400, 400)
+        ax.set_zlim(0, 600)
+        ax.view_init(elev=25, azim=-60)
     
     	# Store references
-    	app.fig = fig
-    	app.ax = ax
-    	app.canvas = canvas
-    	app.robot_lines = None
-    	app.joint_scatter = None
-	# ---------------------------------------------------------------------------------------------------
+        self.fig = fig
+        self.ax = ax
+        self.canvas = canvas
+        self.robot_lines = None
+        self.joint_scatter = None
+	    # ---------------------------------------------------------------------------------------------------
 
-	# ----------------- calling the function (right after widget block ----------------------------------
+	    # ----------------- calling the function (right after widget block ----------------------------------
     	# Start real-time animation
-    	app.after(200, lambda: update_robot_visualization(app, subscriber))
-	# ---------------------------------------------------------------------------------------------------
+        self.after(10, lambda: self.update_robot_visualization())
+        # self.update_robot_visualization()
+    
     
         # --------------------------
         # functions
@@ -485,11 +642,11 @@ import numpy as np
         coordinate_frame.pack(fill="both", expand=True)
     
     
-        graph = ctk.CTkFrame(right_frame)
-        graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
-        graph.grid_rowconfigure(1, weight = 1)
-        graph.grid_columnconfigure(0, weight = 1)
-        ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
+        # graph = ctk.CTkFrame(right_frame)
+        # graph.grid(row = 2, column = 0, sticky = 'nsew', padx = 8, pady = (4,4))
+        # graph.grid_rowconfigure(1, weight = 1)
+        # graph.grid_columnconfigure(0, weight = 1)
+        # ctk.CTkLabel(graph, text = 'Animation').grid(row = 0, column = 0, pady = (6,2))
     
     
         # --------------------------
@@ -505,7 +662,7 @@ import numpy as np
                     status_label.configure(text='Invalid or missing joint values.', text_color='red')
                     return
 
-                self.posCommand_list.append([vals]) # WE NEED TO CHANGE THIS LATER, this is only so that we can do some demonstrations a bit faster
+                self.posCommand_list.append(vals)
 
                 joint_count[0] += 1
     
@@ -521,15 +678,24 @@ import numpy as np
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing coordinate values.', text_color='red')
                     return
-    
-                coordinate_count[0] += 1
-    
-                ctk.CTkLabel(coordinate_frame, text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(anchor="w",pady=2)
-    
-                status_label.configure(
-                    text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
-                    text_color='green')
-                for c in self.coordinate_entries: c.delete(0, 'end')
+
+                try:
+                    xyz_point = [float(v) for v in vals]  # [x, y, z]
+                    self.xyzCommand_list.append(xyz_point)
+                    coordinate_count[0] += 1
+
+                    ctk.CTkLabel(coordinate_frame,
+                                 text=f"{coordinate_count}: X = {vals[0]}, Y = {vals[1]}, Z = {vals[2]}").pack(
+                        anchor="w", pady=2)
+
+                    status_label.configure(
+                        text=f"Added point {coordinate_count[0]}: X={vals[0]} Y={vals[1]} Z={vals[2]}",
+                        text_color='green')
+
+                    for c in self.coordinate_entries: c.delete(0, 'end')
+
+                except ValueError:
+                    status_label.configure(text='Please enter valid numbers', text_color='red')
     
             elif selected == 4:
                 vals = [slider.get for slider in self.joint_sliders]
@@ -581,16 +747,27 @@ import numpy as np
 
 
         def vect_compare(posCommand, posActual):
+            # print("Entered Vect Compare")
             for i in range(len(posCommand)):
-                if (posActual[i] > (posCommand[i] + 1)) or (posActual[i] < (posCommand[i] - 1)):
+                print(f"{posCommand} = {posActual}")
+                if (float(posActual[i]) > (float(posCommand[i]) + 0.3)) or (float(posActual[i]) < (float(posCommand[i]) - 0.3)):
+                    # print("Exiting Vect Compare: False")
                     return False
-            
+            # print("Exiting Vect Compare: True")
             return True
 
 
             # --------------------------
             # run
 
+        feedframe = ctk.CTkFrame(left_frame)
+        feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
+
+        force_label = ctk.CTkLabel(feedframe, text=f"Force sensor: \n{self.posActual[5]}")
+        force_label.grid(row=0, column=0, pady=(0, 6))
+
+        velocity_label = ctk.CTkLabel(feedframe, text=f"Velocity Feedback: \n{self.velActual}")
+        velocity_label.grid(row=1, column=0, pady=(0, 6))
 
         def run():
             selected = mode.get()
@@ -601,40 +778,36 @@ import numpy as np
                     status_label.configure(text='No object entered', text_color='red')
                     return
                 status_label.configure(text=f'Target: {obj}', text_color='green')
-            
+                self.query_publisher.publish(String(data=f'[{obj}]'))
             elif selected ==  2:
+                # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
-                    while vect_compare(self.posCommand, self.posActual[i]) == False:
-                        for j in range(5):
-                            self.posCommand[i] = self.posCommand_list[i][j]
-                        self.arm_command_publisher()
+                    diff = vect_compare(self.posCommand, self.posActual)
+                    while (diff == False) and (selected == 2):
+                        diff = vect_compare(self.posCommand, self.posActual)
+                    # print(f"Vect Compare Passed, writing joint values {self.posCommand_list[i]}")
+                    for j in range(5):
+                        self.posCommand[j] = float(self.posCommand_list[i][j])
+                    self.arm_command_publisher()
                 
-                #   elif selected ==  3:
-                # xyz = [0.0]*3
-                # for i in range(3):
-                #     xyz[i] = float(self.coordinate_entries.get())
-                # self.posCommand = xyz_inverse(xyz)
+            elif selected ==  3:
+                for point in self.xyzCommand_list:
+                    x, y, z = point
+
+                ikValues = self.xyz_inverse(x, y, z)
+                if ikValues[1] > math.pi/2
+                    ikValues = self.xyz_inverse2(x, y, z)
+                if ikValues[5] > 1.0:
+                    print('Outside of workspace: Pointing to coordinate')
+                for i in range(5):
+                    self.posCommand[i] = ikValues[i]
+                self.arm_command_publisher()
     
             elif selected ==  4:
                 for i in range (5):
                     self.posCommand[i] = float(self.joint_sliders[i].get())
                 self.arm_command_publisher()
         # --------------------------
-        # def xyz_inverse(xyz):
-            
-        #     d1 = 57.48 # mm
-        #     a2 = 140.05
-        #     d2 = 2
-        #     a3 = 143.19
-        #     a4 = 11
-        #     d5 = 151.74
-
-        #     a = 
-        #     q1 = math.atan2(xyz[1], xyz(0))
-        #     q2y = 
-        #     q2x = 
-        #     q2 = atan2(,)
-        #     return
 
     
         # --------------------------
@@ -649,12 +822,12 @@ import numpy as np
             status_label.configure(text='Gripper closing', text_color='green')
     
         
-        def open_camera():
-            #nonlocal camera_window
-            if camera_window is None or not camera_window.winfo_exists():
-                camera_window = CameraWindow(self.app)
-            else:
-                camera_window.focus()
+        # def open_camera():
+        #     #nonlocal camera_window
+        #     if camera_window is None or not camera_window.winfo_exists():
+        #         camera_window = CameraWindow(self)
+        #     else:
+        #         camera_window.focus()
     
             
         # --------------------------
@@ -663,21 +836,24 @@ import numpy as np
             ('Open Gripper',  open_gripper, {}),
             ('Close Gripper', close_gripper,{}),
             ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
-            ('Camera',        open_camera,  {}),
+            # ('Camera',        open_camera,  {}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
             )
     
-        return self.app
+        return self
     
 # --------------------------
 
     def run_ui(self):
-        self.app = self.main()
-        ros_thread = threading.Thread(target=rclpy.spin, daemon=True)
-        ros_thread.start
-        self.app.mainloop()
+        def ros_spin():
+            rclpy.spin(self.node)
+        self.main()
+        ros_thread = threading.Thread(target=ros_spin, daemon=True)
+        ros_thread.start()
+        self.mainloop()
+        self.node.destroy_node()
 
 def main():
     rclpy.init()
@@ -687,7 +863,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        node.close()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
