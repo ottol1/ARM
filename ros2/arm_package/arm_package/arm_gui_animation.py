@@ -685,7 +685,7 @@ class ArmGUI(ctk.CTk):
             return True
 
 # --------------------------
-#	FRAMES
+#	FEEDBACK
 
         feedframe = ctk.CTkFrame(left_frame)
         feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
