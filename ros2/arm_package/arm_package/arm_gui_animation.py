@@ -18,7 +18,7 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Image
-from vision_msgs.msg import Detection2D, Detection2DArray
+# from vision_msgs.msg import Detection2D, Detection2DArray
 from std_msgs.msg import String
 
 class ArmGUI(ctk.CTk):
@@ -77,20 +77,20 @@ class ArmGUI(ctk.CTk):
         )
 
         # subscribe to selected depth image for NanoOwl
-        self.depth_image_subscription = self.node.create_subscription(
-            Image,
-            '/odd_arm_cv/selected_depth_image',
-            self.update_depth_image,
-            10
-        )
+        # self.depth_image_subscription = self.node.create_subscription(
+        #     Image,
+        #     '/odd_arm_cv/selected_depth_image',
+        #     self.update_depth_image,
+        #     10
+        # )
 
         # subscribe to NanoOwl detections topic
-        self.detection_subscription = self.node.create_subscription(
-            Detection2DArray,
-            '/nanoowl/output_detections',
-            self.update_detections,
-            10
-        )
+        # self.detection_subscription = self.node.create_subscription(
+        #     Detection2DArray,
+        #     '/nanoowl/output_detections',
+        #     self.update_detections,
+        #     10
+        # )
 
 
     def arm_command_publisher(self):
