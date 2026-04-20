@@ -152,7 +152,7 @@ class ArmGUI(ctk.CTk):
         command.error = error
 
         self.arm_publisher.publish(command)
-        self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic
+        self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic (so RViz can see it)
 
         grip_command = JointTrajectoryControllerState()
 
@@ -195,7 +195,7 @@ class ArmGUI(ctk.CTk):
 
     def update_feedback(self):
         self.force_label.configure(text=f"Force sensor: {self.posActual[5]}")
-        self.velocity_label.configure(text=f"Velocity Feeedback: {self.posActual[0]}")
+        self.velocity_label.configure(text=f"Velocity Feedback: {self.posActual[0]}")
         self.after(10, self.update_feedback)
  
     def set_slider_joints(self, degrees: list):
@@ -524,8 +524,6 @@ class ArmGUI(ctk.CTk):
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=0, minsize=300)
         self.grid_columnconfigure(1, weight=1)
-
-        camera_window = None
     
 # --------------------------
 #	LEFT FRAME
@@ -926,14 +924,7 @@ class ArmGUI(ctk.CTk):
             #node.publish_gripper('close')
             self.posCommand[5] = 1.0
             status_label.configure(text='Gripper closing', text_color='green')
-    
-        
-        # def open_camera():
-        #     #nonlocal camera_window
-        #     if camera_window is None or not camera_window.winfo_exists():
-        #         camera_window = CameraWindow(self)
-        #     else:
-        #         camera_window.focus()
+
     
             
 # --------------------------
@@ -943,7 +934,6 @@ class ArmGUI(ctk.CTk):
             ('Open Gripper',  open_gripper, {}),
             ('Close Gripper', close_gripper,{}),
             ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
-            # ('Camera',        open_camera,  {}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
