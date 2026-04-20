@@ -300,11 +300,11 @@ class ArmGUI(ctk.CTk):
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 57.48 # recommend 63.0
-        a2 = 140.05 # recommend 141.23
+        d1 = 63.0 # recommend 63.0
+        a2 = 141.23 # recommend 141.23
         d2 = 2.0
-        a3 = 143.19 # recommend 145.3
-        d5 = 161.74
+        a3 = 145.3 # recommend 145.3
+        d5 = 165.87
 
         # Desired wrist angle thetad (radians) in world frame
         radial = math.sqrt(x**2 + y**2)
@@ -345,7 +345,7 @@ class ArmGUI(ctk.CTk):
         theta5 = 0.0
         theta2 = (math.pi/2) - theta2
         
-        return [theta1, theta2, theta3, theta4, theta5, D]
+        return [theta1, theta2, theta3, -theta4, theta5, D]
     
     def xyz_inverse2(self, x: float, y: float, z: float):
         """
@@ -361,7 +361,7 @@ class ArmGUI(ctk.CTk):
         a2 = 141.23 
         d2 = 2.0
         a3 = 145.3
-        d5 = 161.74
+        d5 = 165.87
 
         # Effective radial distance after base offset d2
         xy_dist2 = x**2 + y**2
@@ -405,12 +405,12 @@ class ArmGUI(ctk.CTk):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
         t4 = -t4
-        d1 = 57.48 # recommend 63.0
-        a2 = 140.05 # recommend 141.23
+        d1 = 63.0 # recommend 63.0
+        a2 = 141.23 # recommend 141.23
         d2 = 2.0      # offset in A2
-        a3 = 143.19 # recommend 145.3
+        a3 = 145.3 # recommend 145.3
         a4 = 11.0 # recommend removing a4
-        d5 = 151.74 # d5 in IK function is 161.74
+        d5 = 154.87 # d5 in IK function is 161.74
 
     	# A1
         A1 = np.array([
