@@ -347,6 +347,58 @@ class ArmGUI(ctk.CTk):
         
         return [theta1, theta2, theta3, theta4, theta5, D]
     
+    def xyz_inverse2(self, x: float, y: float, z: float):
+        """
+        Solves for inverse kinematics of ARM when theta2 cant go past pi/2
+        
+        Inputs: target position (x, y, z) in mm
+        Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
+        
+        If the target is outside the workspace (|D| > 1), ARM points to the object
+        """
+        # Link lengths
+        d1 = 63.0 
+        a2 = 141.23 
+        d2 = 2.0
+        a3 = 145.3
+        d5 = 161.74
+
+        # Effective radial distance after base offset d2
+        xy_dist2 = x**2 + y**2
+        a = math.sqrt(xy_dist2 - d2**2)
+        theta1 = math.atan2(y, x) - math.atan2(d2, a)
+
+        # theta 2 cant go below zero (past pi/2 for actual arm)
+        theta2 = 0.0
+
+        # variables describing elbow and wrist positions
+        r = z - d1
+        s = a - a2
+        D = (s**2 + r**2 - a3**2 - d5**2) / (2 * d5 * a3)
+
+        # Check for reachable solution
+        if abs(D) > 1.0:
+            # Outside workspace
+            theta3 = math.atan2(z-d1, s)
+            theta4 = 0.0
+        else:
+            # Inverse kinematics
+            sqrt_term = math.sqrt(1.0 - D**2)
+            theta4 = math.atan2(-sqrt_term, D)
+            
+            theta3_temp = math.atan2(r, s)
+            atan_term = math.atan2(
+                d5 * math.sin(theta4),
+                a3 + (d5 * math.cos(theta4))
+            )
+            
+            theta3 = theta3_temp - atan_term
+
+        # theta5 is fixed at 0
+        theta5 = 0.0
+        theta2 = (math.pi/2) - theta2
+        
+        return [theta1, theta2, theta3, -theta4, theta5, D]
 # --------------------------
 #	FORWARD KINEMATICS
     def forward_kinematics(self):# joints):
@@ -596,6 +648,11 @@ class ArmGUI(ctk.CTk):
         ax.set_zlim(0, 600)
         ax.view_init(elev=25, azim=-60)
     
+        # update the tick values to white
+        ax.tick_params(axis='x', colors='white')
+        ax.tick_params(axis='y', colors='white')
+        ax.tick_params(axis='z', colors='white')
+
     	# Store references
         self.fig = fig
         self.ax = ax
@@ -845,7 +902,8 @@ class ArmGUI(ctk.CTk):
                     x, y, z = point
 
                 ikValues = self.xyz_inverse(x, y, z)
-
+                if ikValues[1] > math.pi/2:
+                    ikValues = self.xyz_inverse2(x, y, z)
                 if ikValues[5] > 1.0:
                     print('Outside of workspace: Pointing to coordinate')
                 for i in range(5):
