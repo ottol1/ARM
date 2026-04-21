@@ -9,7 +9,6 @@ setup(
     #packages=find_packages(exclude=['test']),
     packages = [
     	'arm_package',
-    	'arm_package.dynamixel_sdk',
     	],
     #package_dir={'': 'arm_package'},
     data_files=[

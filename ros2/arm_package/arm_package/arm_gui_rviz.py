@@ -38,7 +38,7 @@ class ArmGUI(ctk.CTk):
         self.stater = 'starting' # When nothing detected through NanoOwl yet
         self.detection = None
         self.detection_center = None
-        self.depth = 1.2
+        self.depth = 10000
         self.error = 1000
         self.lost_time = 0
         # self.tick_timer = self.node.create_timer(1 / 30, self.tick) # Need to find an alternative to this
@@ -103,8 +103,6 @@ class ArmGUI(ctk.CTk):
         if self.detection:
             depth_array = np.ndarray(shape=(msg.height, msg.width), dtype=np.uint16, buffer=msg.data)
             self.depth = 0.001*depth_array[floor(self.detection_center[1]), floor(self.detection_center[0])]
-            if self.depth > 1.2:
-                self.depth = 1.2
             #print(self.depth*0.001)
             #print(self.detection.results[0].hypothesis.score)
 
