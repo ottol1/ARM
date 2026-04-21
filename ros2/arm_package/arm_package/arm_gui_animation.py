@@ -261,10 +261,10 @@ class ArmGUI(ctk.CTk):
         # check if the object is still there or if it is no longer detected
         if self.detection == None:
             self.detection_check += 1
-            if self.detection_check >= 3000:
+            if self.detection_check >= 300:
                 self.stater = 'starting'
         else:
-            self.posCommand[0] = self.posCommand[0] - self.error/1080
+            self.posCommand[0] = self.posActual[0] - self.error*0.00173
             self.arm_command_publisher()
 
         # if it is not detected for 300 ticks, start searching again
@@ -499,12 +499,14 @@ class ArmGUI(ctk.CTk):
         # print(f"{self.posActual}")
         forceSensor = self.posActual[5]
         velocities = self.velActual
+        depth_measure = self.depth
 
         vel_list = [round(v, 2) for v in velocities]
         
         # Update existing label text
         self.force_label.configure(text=f"Force Sensor: \n{forceSensor:.2f}")
         self.velocity_label.configure(text=f"Velocity Feedback: \n{vel_list}")
+        self.depth_label.configure(text=f"Depth (m): \n{depth_measure:.2f}")
         
         # Schedule next update
         self.after(10, self.update_robot_feedback)
@@ -887,6 +889,9 @@ class ArmGUI(ctk.CTk):
         self.velocity_label = ctk.CTkLabel(self.feedframe, text=f"Velocity Feedback: \n0")
         self.velocity_label.grid(row=1, column=0, pady=(0, 6))
         # self.after(10, lambda: self.update_feedback)
+
+        self.depth_label = ctk.CTkLabel(self.feedframe, text=f"Depth (m): \n0")
+        self.depth_label.grid(row=2, column=0, pady=(0, 6))
 
 
 # --------------------------
