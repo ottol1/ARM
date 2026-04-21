@@ -61,7 +61,7 @@ class opencmCommandNode(Node):
 		self.prev_posCommand_rad = [0.0]*6
 		self.prev_velCommand_rad = [0.0]*6
 
-		self.timer = self.create_timer(0.02, self.listener_callback) # needed to spin the node
+		self.timer = self.create_timer(0.1, self.listener_callback) # needed to spin the node
 		
 	
 	def gripper_listener(self, msg):
@@ -135,19 +135,19 @@ class opencmCommandNode(Node):
 				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
 			elif i == 5:
 				joint_positions_rad[i] = float(joint_data[i])/1023.0
-				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
+				joint_velocities_rad[i] = float(joint_data[i+6])*10*(2*math.pi*0.11)/60
 
 		servo4_pos = joint_positions_rad[3]
-		servo5_pos = joint_positions_rad[4]
+		servo5_pos = -joint_positions_rad[4]
 
 		# servo4_vel = joint_velocities_rad[3]
 		# servo5_vel = joint_velocities_rad[4]
 
-		wristAtt = math.mean(servo4_pos - servo5_pos)
-		wristRot = servo4_pos - wristAtt
+		wristAtt = (servo4_pos + servo5_pos)/2
+		wristRot = (servo4_pos - servo5_pos)/2
 
-		joint_velocities_rad[3] = wristAtt
-		joint_velocities_rad[4] = wristRot
+		joint_positions_rad[3] = wristAtt
+		joint_positions_rad[4] = wristRot
 		
 		return joint_positions_rad, joint_velocities_rad
 

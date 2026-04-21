@@ -152,7 +152,7 @@ class ArmGUI(ctk.CTk):
         command.error = error
 
         self.arm_publisher.publish(command)
-        self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic (so RViz can see it)
+        # self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic (so RViz can see it)
 
         grip_command = JointTrajectoryControllerState()
 
@@ -238,7 +238,7 @@ class ArmGUI(ctk.CTk):
 
     def tick_start(self):
         print("start ")
-        self.posCommand = [2.9, 0, 0, 1.35, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
+        self.posCommand = [-2.9, 0, 0, 1.37, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
         self.arm_command_publisher()
         if self.vect_compare() == True:
             self.stater = 'searching'
@@ -247,8 +247,8 @@ class ArmGUI(ctk.CTk):
 
     def tick_search(self):
 
-        self.posCommand[0] = self.posCommand[0] - 0.015 # ~20 deg/s
-        if self.posCommand[0] < -2.9:
+        self.posCommand[0] = self.posCommand[0] + 0.015/2 # ~26 deg/s (because of how often the tick runs)
+        if self.posCommand[0] > 2.9:
             self.stater = 'starting'
         else:
             self.arm_command_publisher()
@@ -256,14 +256,15 @@ class ArmGUI(ctk.CTk):
                 self.stater = 'tracking'
 
     def tick_align(self):
-        self.error = self.detection_center[0] - 424  # 424 is image center on ARM camera
+        self.error = self.detection_center[0] - 424  # 424 is image center on ARM camera. detection_center[0] is the x position of the bounding box, in pixels
+        print(f'Error = {self.error}')
         # check if the object is still there or if it is no longer detected
         if self.detection == None:
             self.detection_check += 1
-            if self.detection_check >= 300:
+            if self.detection_check >= 3000:
                 self.stater = 'starting'
         else:
-            self.posCommand[0] = self.posCommand[0] + self.error*(9/16)*(math.pi/180)
+            self.posCommand[0] = self.posCommand[0] - self.error/1080
             self.arm_command_publisher()
 
         # if it is not detected for 300 ticks, start searching again
@@ -495,12 +496,15 @@ class ArmGUI(ctk.CTk):
 
     def update_robot_feedback(self):
         # Update data
+        # print(f"{self.posActual}")
         forceSensor = self.posActual[5]
         velocities = self.velActual
+
+        vel_list = [round(v, 2) for v in velocities]
         
         # Update existing label text
-        self.force_label.configure(text=f"Force Sensor: \n{forceSensor}")
-        self.velocity_label.configure(text=f"Velocity Feedback: \n{velocities}")
+        self.force_label.configure(text=f"Force Sensor: \n{forceSensor:.2f}")
+        self.velocity_label.configure(text=f"Velocity Feedback: \n{vel_list}")
         
         # Schedule next update
         self.after(10, self.update_robot_feedback)
@@ -508,8 +512,8 @@ class ArmGUI(ctk.CTk):
 
     def vect_compare(self):
         # print("Entered Vect Compare")
-        for i in range(len(self.posCommand)):
-            print(f"{self.posCommand} = {self.posActual}")
+        for i in range(len(self.posCommand)-1):
+            # print(f"{self.posCommand} = {self.posActual}")
             if (float(self.posActual[i]) > (float(self.posCommand[i]) + 0.3)) or (
                     float(self.posActual[i]) < (float(self.posCommand[i]) - 0.3)):
                 # print("Exiting Vect Compare: False")
@@ -642,6 +646,7 @@ class ArmGUI(ctk.CTk):
         fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
         ax = fig.add_subplot(111, projection='3d')
         ax.set_facecolor('#1e1e1e')
+        ax.set_proj_type('ortho') # so that it doesn't have perspective distortion
     
         canvas = FigureCanvasTkAgg(fig, master=graph)
         canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew', padx=8, pady=8)
