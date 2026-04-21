@@ -95,8 +95,8 @@ class opencmCommandNode(Node):
 		servo4_pos = wristAtt_pos - wristRot_pos
 		servo5_pos = -wristAtt_pos - wristRot_pos
 
-		servo4_vel = (-wristAtt_vel - wristRot_vel)/2
-		servo5_vel = (wristAtt_vel + wristRot_vel)/2
+		servo4_vel = (-wristAtt_vel - wristRot_vel)
+		servo5_vel = (wristAtt_vel + wristRot_vel)
 
 		self.posCommand_rad[3] = servo4_pos
 		self.posCommand_rad[4] = servo5_pos
@@ -136,6 +136,18 @@ class opencmCommandNode(Node):
 			elif i == 5:
 				joint_positions_rad[i] = float(joint_data[i])/1023.0
 				joint_velocities_rad[i] = float(joint_data[i+6])*(2*math.pi*0.11)/60
+
+		servo4_pos = joint_positions_rad[3]
+		servo5_pos = joint_positions_rad[4]
+
+		# servo4_vel = joint_velocities_rad[3]
+		# servo5_vel = joint_velocities_rad[4]
+
+		wristAtt = math.mean(servo4_pos - servo5_pos)
+		wristRot = servo4_pos - wristAtt
+
+		joint_velocities_rad[3] = wristAtt
+		joint_velocities_rad[4] = wristRot
 		
 		return joint_positions_rad, joint_velocities_rad
 
