@@ -209,9 +209,8 @@ class ArmGUI(ctk.CTk):
 
     def destroy_node(self):
         pass
-    # --------------------------
-
-    # ------------------------ object search algorithm --------------------------
+# --------------------------
+#    OBJECT SEARCH ALGORITHM
 
     def tick(self):
 
@@ -286,8 +285,6 @@ class ArmGUI(ctk.CTk):
     #         self.stater = 'search'
     #     else:
     #         self.lost_time += 1 / 30
-
-    # ---------------------------------------------------------------------------
 
 
 # --------------------------
