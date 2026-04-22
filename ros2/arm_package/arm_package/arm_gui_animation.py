@@ -303,7 +303,7 @@ class ArmGUI(ctk.CTk):
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 63.0 # recommend 63.0
+        d1 = 63.0-45.0 # recommend 63.0
         a2 = 141.23 # recommend 141.23
         d2 = 2.0
         a3 = 145.3 # recommend 145.3
@@ -311,7 +311,7 @@ class ArmGUI(ctk.CTk):
 
         # Desired wrist angle thetad (radians) in world frame
         radial = math.sqrt(x**2 + y**2)
-        thetad = math.atan2(z - d1, radial)
+        thetad = math.atan2(z-d1, radial)
         print(thetad)
         # Effective radial distance after base offset d2
         xy_dist2 = x**2 + y**2
@@ -346,9 +346,9 @@ class ArmGUI(ctk.CTk):
 
         # theta5 is fixed at 0
         theta5 = 0.0
-        theta2 = (math.pi/2) - theta2
-        
-        return [theta1, theta2, theta3, -theta4, theta5, D]
+        theta2 = theta2 - (math.pi/2)
+        print(f"Angles (radians): theta1={theta1},\n -theta2={-theta2},\n theta3={theta3},\n -theta4={-theta4},\n theta5={theta5}\n")
+        return [theta1, -theta2, theta3, -theta4, theta5, D]
     
     def xyz_inverse2(self, x: float, y: float, z: float):
         """
@@ -360,7 +360,7 @@ class ArmGUI(ctk.CTk):
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 63.0 
+        d1 = 63.0 - 45.0
         a2 = 141.23 
         d2 = 2.0
         a3 = 145.3
@@ -408,7 +408,7 @@ class ArmGUI(ctk.CTk):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
         t4 = -t4
-        d1 = 63.0
+        d1 = 63.0-45.0
         a2 = 141.23
         d2 = 2.0      # offset in A2
         a3 = 145.3

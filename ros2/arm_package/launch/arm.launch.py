@@ -124,14 +124,14 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        # ros2_control_hardware_type,
-        # rviz_node,
-        # world2robot_tf_node,
-        # robot_state_publisher,
-        # move_group_node,
-        # ros2_control_node,
-        # joint_state_broadcaster_spawner,
-        # arm_robot_controller_spawner,
+        ros2_control_hardware_type,
+        rviz_node,
+        world2robot_tf_node,
+        robot_state_publisher,
+        move_group_node,
+        ros2_control_node,
+        joint_state_broadcaster_spawner,
+        arm_robot_controller_spawner,
         opencm_command_node,
         arm_command_node,
     ])
