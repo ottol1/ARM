@@ -320,7 +320,7 @@ class ArmGUI(ctk.CTk):
 
         # variables describing shoulder and elbow positions
         r = z - d1 - ((d5) * math.sin(thetad))
-        s = a - ((d5) * math.cos(math.fabs(thetad)))
+        s = a - ((d5) * math.cos(thetad))
         D = (s**2 + r**2 - a2**2 - a3**2) / (2 * a3 * a2)
 
         # Check for reachable solution
@@ -408,12 +408,11 @@ class ArmGUI(ctk.CTk):
         t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
         t2 = math.pi/2 - t2
         t4 = -t4
-        d1 = 63.0 # recommend 63.0
-        a2 = 141.23 # recommend 141.23
+        d1 = 63.0
+        a2 = 141.23
         d2 = 2.0      # offset in A2
-        a3 = 145.3 # recommend 145.3
-        a4 = 11.0 # recommend removing a4
-        d5 = 154.87 # d5 in IK function is 161.74
+        a3 = 145.3
+        d5 = 165.87
 
     	# A1
         A1 = np.array([
@@ -441,8 +440,8 @@ class ArmGUI(ctk.CTk):
 
     	# A4
         A4 = np.array([
-            [np.cos(np.pi/2 + t4), 0,          np.sin(np.pi/2 + t4), a4*np.cos(t4)],
-            [np.sin(np.pi/2 + t4), 0,         -np.cos(np.pi/2 + t4), a4*np.sin(t4)],
+            [np.cos(np.pi/2 + t4), 0,          np.sin(np.pi/2 + t4), 0],
+            [np.sin(np.pi/2 + t4), 0,         -np.cos(np.pi/2 + t4), 0],
             [0,                    1,          0,                    0],
             [0,                    0,          0,                    1]
     	])
