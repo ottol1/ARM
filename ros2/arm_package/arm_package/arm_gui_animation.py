@@ -599,22 +599,42 @@ class ArmGUI(ctk.CTk):
         self.joint_sliders       = []
         slider_value_labels = []
         for i, (low, high) in enumerate(JOINT_LIMITS): # Still need to change limits display for joint 1
-            s = ctk.CTkFrame(slider_frame, fg_color='transparent')
-            s.pack(fill='x', padx=14, pady=3)
-            ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
-            ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
-            ).pack(side='left', padx=(4, 2))
-            ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
-            ).pack(side='right', padx=(2, 4))
+            if i != 0:
+                s = ctk.CTkFrame(slider_frame, fg_color='transparent')
+                s.pack(fill='x', padx=14, pady=3)
+                ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
+                ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+                ).pack(side='left', padx=(4, 2))
+                ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+                ).pack(side='right', padx=(2, 4))
 
-            slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
-            slider.set(0)
-            slider.pack(side='left', fill='x', expand=True, padx=4)
+                slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
+                slider.set(0)
+                slider.pack(side='left', fill='x', expand=True, padx=4)
 
-            values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
-            values.pack(side='left')
-            slider_value_labels.append(values)
-            self.joint_sliders.append(slider)
+                values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
+                values.pack(side='left')
+                slider_value_labels.append(values)
+                self.joint_sliders.append(slider)
+            if i == 0:
+                # the first slider needs it's limits displayed seperately
+                s = ctk.CTkFrame(slider_frame, fg_color='transparent')
+                s.pack(fill='x', padx=14, pady=3)
+                ctk.CTkLabel(s, text=f'J{i + 1}', width=28, anchor='w').pack(side='left')
+                ctk.CTkLabel(s, text='-pi', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+                             ).pack(side='left', padx=(4, 2))
+                ctk.CTkLabel(s, text="pi", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+                             ).pack(side='right', padx=(2, 4))
+
+                slider = ctk.CTkSlider(s, from_=-math.pi, to=math.pi, orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx), )
+                slider.set(0)
+                slider.pack(side='left', fill='x', expand=True, padx=4)
+
+                values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
+                values.pack(side='left')
+                slider_value_labels.append(values)
+                self.joint_sliders.append(slider)
+
         slider_frame.pack_forget()
 
         def _on_slider(val, idx):
