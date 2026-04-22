@@ -18,7 +18,7 @@ using namespace ControlTableItem;
 const int DXL_DIR_PIN = 28, FS_PIN = A0;  // DXL and force sensor pins
 const float DXL_PROTOCOL_VERSION1 = 1.0, DXL_PROTOCOL_VERSION2 = 2.0;
 
-const int open_factor = 7, grip_trig = 250, grip_safe_speed = 1297, e_fs = 102;  // 102 = 0.1N, grip_safe_speed = 273
+const int open_factor = 6, grip_trig = 250, grip_safe_speed = 1297, e_fs = 102;  // 102 = 0.1N, grip_safe_speed = 273
 
 // vectors to store position and velocity data
 // int goalPos[6] = {154, 343, 165, 188, 157, 0}, maxVel[6] = {30, 30, 30, 30, 30, 30}; // convert to ticks!
@@ -166,9 +166,15 @@ void grip_write() {
   fs = analogRead(FS_PIN);    // 0 - 1023, 0V - 3.3V, 0N - 1N
   int pos_current = dxl1.getPresentPosition(6);
   // check if gripper commanded open
-  if (grip_command == 0) {
+  if ((grip_command == 0) && (grip_rot < open_factor)) {
     // open gripper
-    grip_open();
+    if (grip_rot < open_factor) {
+    dxl1.writeControlTableItem(MOVING_SPEED, 6, (grip_safe_speed - 1024));  // 1024 - 2047 represents ccw rotation
+    int diff = abs(pos_current - pos_last);
+    if (diff > grip_trig) {
+      grip_rot += 1;
+    }
+    pos_last = pos_current;
   }
   // if gripper is not closed, close
   else if (fs <= (grip_command - e_fs)) {  // check what we want cutoff to be, fs = 0 - 1023
