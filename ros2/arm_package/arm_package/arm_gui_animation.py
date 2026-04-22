@@ -557,11 +557,12 @@ class ArmGUI(ctk.CTk):
                     font=('Arial', 14, 'bold')).pack(pady=(14, 6))
     
         text_1 = ctk.CTkTextbox(left_frame, width=240, height=70)
-        text_1.pack(pady=6, padx=10)
+        text_1.grid(row = 1, column = 0, pady = 6, padx = 10)
         text_1.insert("0.0",
             "mode 1: Object detection\n"
             "mode 2: Joint variables\n"
             "mode 3: Coordinates\n"
+            "Manual joint movement\n"
         )
         text_1.configure(state="disabled")
     
