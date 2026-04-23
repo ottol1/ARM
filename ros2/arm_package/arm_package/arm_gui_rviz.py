@@ -22,60 +22,61 @@ from vision_msgs.msg import Detection2D, Detection2DArray
 from std_msgs.msg import String
 from math import floor
 
+
 class ArmGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.node = rclpy.create_node('arm_command_node')
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
-        self.posCommand=[0.0]*6
-        self.velCommand=[0.2]*6
-        self.posActual = [0.0]*6
-        self.velActual = [0.0]*6
+        self.posCommand = [0.0] * 6
+        self.velCommand = [0.2] * 6
+        self.posActual = [0.0] * 6
+        self.velActual = [0.0] * 6
         self.switch = False
         self.posCommand_list = []
         self.xyzCommand_list = []
-        self.stater = 'starting' # When nothing detected through NanoOwl yet
+        self.stater = 'starting'  # When nothing detected through NanoOwl yet
         self.detection = None
         self.detection_center = None
-        self.depth = 10000
+        self.depth = 1.2
         self.error = 1000
         self.lost_time = 0
         # self.tick_timer = self.node.create_timer(1 / 30, self.tick) # Need to find an alternative to this
         self.detection_check = 0
         self.search_object = ""
 
-#	publish to the arm_controller/controller_state topic
- 
+        #	publish to the arm_controller/controller_state topic
+
         self.arm_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             '/arm_controller/controller_state',
             10
         )
- 
-#	publish to the gripper_controller/controller_state topic
- 
+
+        #	publish to the gripper_controller/controller_state topic
+
         self.gripper_publisher = self.node.create_publisher(
             JointTrajectoryControllerState,
             'gripper_controller/controller_state',
             10
         )
 
-#	publish to the joint_states topic
+        #	publish to the joint_states topic
         self.publisher = self.node.create_publisher(
             JointState,
             '/joint_states',
             10
         )
-#   publish input query to NanoOwl
+        #   publish input query to NanoOwl
         self.query_publisher = self.node.create_publisher(
             String,
             '/nanoowl/input_query',
             10
         )
 
-#	subscribe to the joint_states topic
- 
+        #	subscribe to the joint_states topic
+
         self.state_subscriber = self.node.create_subscription(
             JointState,
             '/joint_states',
@@ -102,9 +103,11 @@ class ArmGUI(ctk.CTk):
     def update_depth_image(self, msg):
         if self.detection:
             depth_array = np.ndarray(shape=(msg.height, msg.width), dtype=np.uint16, buffer=msg.data)
-            self.depth = 0.001*depth_array[floor(self.detection_center[1]), floor(self.detection_center[0])]
-            #print(self.depth*0.001)
-            #print(self.detection.results[0].hypothesis.score)
+            self.depth = 0.001 * depth_array[floor(self.detection_center[1]), floor(self.detection_center[0])]
+            if self.depth > 1.2:
+                self.depth = 1.2
+            # print(self.depth*0.001)
+            # print(self.detection.results[0].hypothesis.score)
 
     def update_detections(self, msg):
         if len(msg.detections) > 1:
@@ -120,10 +123,10 @@ class ArmGUI(ctk.CTk):
             for i in range(6):
                 self.velCommand[i] = float(self.vel_sliders[0].get())
         elif self.switch == False:
-            self.velCommand=[0.2]*6
+            self.velCommand = [0.2] * 6
 
         # joint names
-        command.joint_names = ['shoulder_joint','upperarm_joint','forearm_joint','wrist_joint','frame_joint']
+        command.joint_names = ['shoulder_joint', 'upperarm_joint', 'forearm_joint', 'wrist_joint', 'frame_joint']
 
         # desired, actual, error must be JointTrajectoryPoint
         desired = JointTrajectoryPoint()
@@ -141,8 +144,8 @@ class ArmGUI(ctk.CTk):
         actual.time_from_start = Duration(sec=0, nanosec=0)
 
         error = JointTrajectoryPoint()
-        error.positions = [0.0]*5
-        error.velocities = [0.0]*5
+        error.positions = [0.0] * 5
+        error.velocities = [0.0] * 5
         error.accelerations = []
         error.effort = []
         error.time_from_start = Duration(sec=0, nanosec=0)
@@ -162,7 +165,7 @@ class ArmGUI(ctk.CTk):
         # desired, actual, error must be JointTrajectoryPoint
         grip_desired = JointTrajectoryPoint()
         grip_desired.positions = [float(self.posCommand[5])]
-        grip_desired.velocities = [float(self.velCommand[5]*40)]
+        grip_desired.velocities = [float(self.velCommand[5] * 40)]
         grip_desired.accelerations = []
         grip_desired.effort = []
         grip_desired.time_from_start = Duration(sec=0, nanosec=0)
@@ -175,8 +178,8 @@ class ArmGUI(ctk.CTk):
         grip_actual.time_from_start = Duration(sec=0, nanosec=0)
 
         grip_error = JointTrajectoryPoint()
-        grip_error.positions = [0.0]*5
-        grip_error.velocities = [0.0]*5
+        grip_error.positions = [0.0] * 5
+        grip_error.velocities = [0.0] * 5
         grip_error.accelerations = []
         grip_error.effort = []
         grip_error.time_from_start = Duration(sec=0, nanosec=0)
@@ -187,8 +190,6 @@ class ArmGUI(ctk.CTk):
 
         self.gripper_publisher.publish(grip_command)
 
-        
-    
     def arm_state_subscriber(self, msg):
         self.posActual = list(msg.position)
         self.velActual = list(msg.velocity)
@@ -197,19 +198,18 @@ class ArmGUI(ctk.CTk):
     #     self.force_label.configure(text=f"Force sensor: {self.posActual[5]}")
     #     self.velocity_label.configure(text=f"Velocity Feedback: {self.posActual[0]}")
     #     self.after(10, self.update_feedback)
- 
+
     def set_slider_joints(self, degrees: list):
         with self.slider_lock:
             self.slider_joints = degrees[:]
             self.slider_active = True
-        print(f'[Slider] { {f"J{i+1}": d for i, d in enumerate(degrees)} }')
- 
+        print(f'[Slider] { {f"J{i + 1}": d for i, d in enumerate(degrees)} }')
 
     def destroy_node(self):
         pass
-    # --------------------------
 
-    # ------------------------ object search algorithm --------------------------
+    # --------------------------
+    #    OBJECT SEARCH ALGORITHM
 
     def tick(self):
 
@@ -228,7 +228,6 @@ class ArmGUI(ctk.CTk):
         elif self.stater == 'tracking':
             self.tick_align()
 
-
         # self.rpms[0] = min(max(self.rpms[0], -50), 50)
         # self.rpms[1] = min(max(self.rpms[1], -50), 50)
 
@@ -238,7 +237,7 @@ class ArmGUI(ctk.CTk):
 
     def tick_start(self):
         print("start ")
-        self.posCommand = [-2.9, 0, 0, 1.37, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
+        self.posCommand = [-2.9, 0, 0, 1.37, 0, self.posCommand[5]]  # 2.9 rads for base, 1.3ish for wrist elevation
         self.arm_command_publisher()
         if self.vect_compare() == True:
             self.stater = 'searching'
@@ -247,7 +246,7 @@ class ArmGUI(ctk.CTk):
 
     def tick_search(self):
 
-        self.posCommand[0] = self.posCommand[0] + 0.015/2 # ~26 deg/s (because of how often the tick runs)
+        self.posCommand[0] = self.posCommand[0] + 0.015 / 2  # ~26 deg/s (because of how often the tick runs)
         if self.posCommand[0] > 2.9:
             self.stater = 'starting'
         else:
@@ -256,7 +255,8 @@ class ArmGUI(ctk.CTk):
                 self.stater = 'tracking'
 
     def tick_align(self):
-        self.error = self.detection_center[0] - 424  # 424 is image center on ARM camera. detection_center[0] is the x position of the bounding box, in pixels
+        self.error = self.detection_center[
+                         0] - 424  # 424 is image center on ARM camera. detection_center[0] is the x position of the bounding box, in pixels
         print(f'Error = {self.error}')
         # check if the object is still there or if it is no longer detected
         if self.detection == None:
@@ -264,12 +264,11 @@ class ArmGUI(ctk.CTk):
             if self.detection_check >= 300:
                 self.stater = 'starting'
         else:
-            self.posCommand[0] = self.posActual[0] - self.error*0.00173
+            self.posCommand[0] = self.posActual[0] - self.error * 0.00173
             self.arm_command_publisher()
 
         # if it is not detected for 300 ticks, start searching again
         # if it is detected, try to align with it
-
 
         # self.rpms = [self.rpms[0] + self.error * 0.03, self.rpms[1] - self.error * 0.03]  # P control
 
@@ -285,88 +284,86 @@ class ArmGUI(ctk.CTk):
     #     else:
     #         self.lost_time += 1 / 30
 
-    # ---------------------------------------------------------------------------
-
-
-# --------------------------
-#	INVERSE KINEMATICS
+    # --------------------------
+    #	INVERSE KINEMATICS
 
     def xyz_inverse(self, x: float, y: float, z: float):
         """
         Solves for inverse kinematics of ARM
-        
+
         Inputs: target position (x, y, z) in mm
         Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
-        
+
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 63.0 # recommend 63.0
-        a2 = 141.23 # recommend 141.23
+        d1 = 63.0 - 45.0  # recommend 63.0
+        a2 = 141.23  # recommend 141.23
         d2 = 2.0
-        a3 = 145.3 # recommend 145.3
+        a3 = 145.3  # recommend 145.3
         d5 = 165.87
 
         # Desired wrist angle thetad (radians) in world frame
-        radial = math.sqrt(x**2 + y**2)
+        radial = math.sqrt(x ** 2 + y ** 2)
         thetad = math.atan2(z - d1, radial)
         print(thetad)
         # Effective radial distance after base offset d2
-        xy_dist2 = x**2 + y**2
-        a = math.sqrt(xy_dist2 - d2**2)
+        xy_dist2 = x ** 2 + y ** 2
+        a = math.sqrt(xy_dist2 - d2 ** 2)
         theta1 = math.atan2(y, x) - math.atan2(d2, a)
 
         # variables describing shoulder and elbow positions
         r = z - d1 - ((d5) * math.sin(thetad))
-        s = a - ((d5) * math.cos(math.fabs(thetad)))
-        D = (s**2 + r**2 - a2**2 - a3**2) / (2 * a3 * a2)
+        s = a - ((d5) * math.cos(thetad))
+        D = (s ** 2 + r ** 2 - a2 ** 2 - a3 ** 2) / (2 * a3 * a2)
 
         # Check for reachable solution
         if abs(D) > 1.0:
             # Outside workspace
             theta3 = 0.0
-            theta2 = math.atan2(z-d1, radial)
+            theta2 = math.atan2(z - d1, radial)
             theta4 = 0.0
         else:
             # Inverse kinematics
-            sqrt_term = math.sqrt(1.0 - D**2)
+            sqrt_term = math.sqrt(1.0 - D ** 2)
             theta3 = math.atan2(-sqrt_term, D)
-            
+
             theta2_temp = math.atan2(r, s)
             atan_term = math.atan2(
                 a3 * math.sin(theta3),
                 a2 + (a3 * math.cos(theta3))
             )
-            
+
             theta2 = theta2_temp - atan_term
-            
+
             theta4 = -theta2 - theta3 + thetad
 
         # theta5 is fixed at 0
         theta5 = 0.0
-        theta2 = (math.pi/2) - theta2
-        
-        return [theta1, theta2, theta3, -theta4, theta5, D]
-    
+        theta2 = theta2 - (math.pi / 2)
+        print(
+            f"Angles (radians): theta1={theta1},\n -theta2={-theta2},\n theta3={theta3},\n -theta4={-theta4},\n theta5={theta5}\n")
+        return [theta1, -theta2, theta3, -theta4, theta5, D]
+
     def xyz_inverse2(self, x: float, y: float, z: float):
         """
         Solves for inverse kinematics of ARM when theta2 cant go past pi/2
-        
+
         Inputs: target position (x, y, z) in mm
         Outputs: list of joint angles in RADIANS [theta1, theta2, theta3, theta4, theta5]
-        
+
         If the target is outside the workspace (|D| > 1), ARM points to the object
         """
         # Link lengths
-        d1 = 63.0 
-        a2 = 141.23 
+        d1 = 63.0 - 45.0
+        a2 = 141.23
         d2 = 2.0
         a3 = 145.3
         d5 = 165.87
 
         # Effective radial distance after base offset d2
-        xy_dist2 = x**2 + y**2
-        a = math.sqrt(xy_dist2 - d2**2)
+        xy_dist2 = x ** 2 + y ** 2
+        a = math.sqrt(xy_dist2 - d2 ** 2)
         theta1 = math.atan2(y, x) - math.atan2(d2, a)
 
         # theta 2 cant go below zero (past pi/2 for actual arm)
@@ -375,85 +372,85 @@ class ArmGUI(ctk.CTk):
         # variables describing elbow and wrist positions
         r = z - d1
         s = a - a2
-        D = (s**2 + r**2 - a3**2 - d5**2) / (2 * d5 * a3)
+        D = (s ** 2 + r ** 2 - a3 ** 2 - d5 ** 2) / (2 * d5 * a3)
 
         # Check for reachable solution
         if abs(D) > 1.0:
             # Outside workspace
-            theta3 = math.atan2(z-d1, s)
+            theta3 = math.atan2(z - d1, s)
             theta4 = 0.0
         else:
             # Inverse kinematics
-            sqrt_term = math.sqrt(1.0 - D**2)
+            sqrt_term = math.sqrt(1.0 - D ** 2)
             theta4 = math.atan2(-sqrt_term, D)
-            
+
             theta3_temp = math.atan2(r, s)
             atan_term = math.atan2(
                 d5 * math.sin(theta4),
                 a3 + (d5 * math.cos(theta4))
             )
-            
+
             theta3 = theta3_temp - atan_term
 
         # theta5 is fixed at 0
         theta5 = 0.0
-        theta2 = (math.pi/2) - theta2
-        
+        theta2 = (math.pi / 2) - theta2
+
         return [theta1, theta2, theta3, -theta4, theta5, D]
-# --------------------------
-#	FORWARD KINEMATICS
-    def forward_kinematics(self):# joints):
-        t1, t2, t3, t4, t5, t6 = self.posActual# joints # np.deg2rad(joints)
-        t2 = math.pi/2 - t2
+
+    # --------------------------
+    #	FORWARD KINEMATICS
+    def forward_kinematics(self):  # joints):
+        t1, t2, t3, t4, t5, t6 = self.posActual  # joints # np.deg2rad(joints)
+        t2 = math.pi / 2 - t2
         t4 = -t4
-        d1 = 63.0 # recommend 63.0
-        a2 = 141.23 # recommend 141.23
-        d2 = 2.0      # offset in A2
-        a3 = 145.3 # recommend 145.3
-        a4 = 11.0 # recommend removing a4
-        d5 = 154.87 # d5 in IK function is 161.74
+        d1 = 63.0 - 45.0
+        a2 = 141.23
+        d2 = 2.0  # offset in A2
+        a3 = 145.3
+        d5 = 165.87
 
-    	# A1
+        # A1
         A1 = np.array([
-            [np.cos(t1), 0,          np.sin(t1), 0],
-            [np.sin(t1), 0,         -np.cos(t1), 0],
-            [0,          1,          0,          d1],
-            [0,          0,          0,          1]
-    	])
+            [np.cos(t1), 0, np.sin(t1), 0],
+            [np.sin(t1), 0, -np.cos(t1), 0],
+            [0, 1, 0, d1],
+            [0, 0, 0, 1]
+        ])
 
-    	# A2 (with d2 offset)
+        # A2 (with d2 offset)
         A2 = np.array([
-            [np.cos(t2), -np.sin(t2), 0, a2*np.cos(t2)],
-            [np.sin(t2),  np.cos(t2), 0, a2*np.sin(t2)],
-            [0,           0,          1, d2],
-            [0,           0,          0, 1]
-    	])
+            [np.cos(t2), -np.sin(t2), 0, a2 * np.cos(t2)],
+            [np.sin(t2), np.cos(t2), 0, a2 * np.sin(t2)],
+            [0, 0, 1, d2],
+            [0, 0, 0, 1]
+        ])
 
-    	# A3
+        # A3
         A3 = np.array([
-            [np.cos(t3), -np.sin(t3), 0, a3*np.cos(t3)],
-            [np.sin(t3),  np.cos(t3), 0, a3*np.sin(t3)],
-            [0,           0,          1, 0],
-            [0,           0,          0, 1]
-    	])
+            [np.cos(t3), -np.sin(t3), 0, a3 * np.cos(t3)],
+            [np.sin(t3), np.cos(t3), 0, a3 * np.sin(t3)],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
 
-    	# A4
+        # A4
         A4 = np.array([
-            [np.cos(np.pi/2 + t4), 0,          np.sin(np.pi/2 + t4), a4*np.cos(t4)],
-            [np.sin(np.pi/2 + t4), 0,         -np.cos(np.pi/2 + t4), a4*np.sin(t4)],
-            [0,                    1,          0,                    0],
-            [0,                    0,          0,                    1]
-    	])
+            [np.cos(np.pi / 2 + t4), 0, np.sin(np.pi / 2 + t4), 0],
+            [np.sin(np.pi / 2 + t4), 0, -np.cos(np.pi / 2 + t4), 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 1]
+        ])
 
         # A5
         A5 = np.array([
             [np.cos(t5), -np.sin(t5), 0, 0],
-            [np.sin(t5),  np.cos(t5), 0, 0],
-            [0,           0,          1, d5],
-            [0,           0,          0, 1]
-    	])
+            [np.sin(t5), np.cos(t5), 0, 0],
+            [0, 0, 1, d5],
+            [0, 0, 0, 1]
+        ])
 
-    	# Chain
+        # Chain
         T = np.eye(4)
         origins = [T[:3, 3].copy()]
 
@@ -462,13 +459,14 @@ class ArmGUI(ctk.CTk):
             origins.append(T[:3, 3].copy())
 
         return np.array(origins)  # (6, 3) points
-# --------------------------
-#	UPDATE ANIMATION FUNCTION (right after forward kinematics)
+
+    # --------------------------
+    #	UPDATE ANIMATION FUNCTION (right after forward kinematics)
     def update_robot_visualization(self):
         """Real-time 3D robot update"""
         try:
             # joints_deg = np.rad2deg(self.posActual)
-            points = self.forward_kinematics() # self.posActual) # joints_deg)
+            points = self.forward_kinematics()  # self.posActual) # joints_deg)
             ax = self.ax
 
             # Clear previous drawings
@@ -480,17 +478,16 @@ class ArmGUI(ctk.CTk):
                 self.end_effector.remove()
 
             # Draw robot
-            self.robot_lines = ax.plot(points[:,0], points[:,1], points[:,2],
-                                      color='#00ddff', linewidth=6, solid_capstyle='round')[0]
-            self.joint_scatter = ax.scatter(points[:,0], points[:,1], points[:,2],
-                                           color='#ffaa00', s=120)
+            self.robot_lines = ax.plot(points[:, 0], points[:, 1], points[:, 2],
+                                       color='#00ddff', linewidth=6, solid_capstyle='round')[0]
+            self.joint_scatter = ax.scatter(points[:, 0], points[:, 1], points[:, 2],
+                                            color='#ffaa00', s=120)
             # End-effector highlight
-            self.end_effector = ax.scatter(points[-1,0], points[-1,1], points[-1,2], color='red', s=200)
+            self.end_effector = ax.scatter(points[-1, 0], points[-1, 1], points[-1, 2], color='red', s=200)
 
             self.canvas.draw_idle()
         except Exception as e:
             print(f"[Vis Error] {e}")
-
 
         self.after(10, self.update_robot_visualization)
 
@@ -502,19 +499,18 @@ class ArmGUI(ctk.CTk):
         depth_measure = self.depth
 
         vel_list = [round(v, 2) for v in velocities]
-        
+
         # Update existing label text
         self.force_label.configure(text=f"Force Sensor: \n{forceSensor:.2f}")
         self.velocity_label.configure(text=f"Velocity Feedback: \n{vel_list}")
         self.depth_label.configure(text=f"Depth (m): \n{depth_measure:.2f}")
-        
+
         # Schedule next update
         self.after(10, self.update_robot_feedback)
 
-
     def vect_compare(self):
         # print("Entered Vect Compare")
-        for i in range(len(self.posCommand)-1):
+        for i in range(len(self.posCommand) - 1):
             # print(f"{self.posCommand} = {self.posActual}")
             if (float(self.posActual[i]) > (float(self.posCommand[i]) + 0.3)) or (
                     float(self.posActual[i]) < (float(self.posCommand[i]) - 0.3)):
@@ -530,62 +526,62 @@ class ArmGUI(ctk.CTk):
 
         ctk.set_appearance_mode('dark')
         ctk.set_default_color_theme('blue')
-    
-        
+
         self.lift()
         self.focus_force()
         self.geometry('1000x680')
         self.title('ARM user control')
-        #app.eval('tk::PlaceWindow . center')
+        # app.eval('tk::PlaceWindow . center')
         self.resizable(True, True)
-    
+
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=0)
         self.grid_columnconfigure(0, weight=0, minsize=300)
         self.grid_columnconfigure(1, weight=1)
-    
-# --------------------------
-#	LEFT FRAME
 
-        left_frame = ctk.CTkFrame(self,width=280)
-        left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12,6))
+        # --------------------------
+        #	LEFT FRAME
+
+        left_frame = ctk.CTkFrame(self, width=280)
+        left_frame.grid(row=0, column=0, sticky='nsew', padx=(12, 6), pady=(12, 6))
         left_frame.grid_columnconfigure(0, weight=1)
         left_frame.grid_propagate(False)
         left_frame.grid_rowconfigure(4, weight=1)
         ctk.CTkLabel(left_frame, text='ARM Mode Selection',
-                    font=('Arial', 14, 'bold')).pack(pady=(14, 6))
-    
+                     font=('Arial', 14, 'bold')).pack(pady=(14, 6))
+
         text_1 = ctk.CTkTextbox(left_frame, width=240, height=70)
-        text_1.pack(pady=6, padx=10)
+        text_1.grid(row=1, column=0, pady=6, padx=10)
         text_1.insert("0.0",
-            "mode 1: Object detection\n"
-            "mode 2: Joint variables\n"
-            "mode 3: Coordinates\n"
-        )
+                      "mode 1: Object detection\n"
+                      "mode 2: Joint variables\n"
+                      "mode 3: Coordinates\n"
+                      "Manual joint movement\n"
+                      )
         text_1.configure(state="disabled")
-    
+
         mode = ctk.IntVar(value=1)
-# --------------------------
-#	FRAMES
+        # --------------------------
+        #	FRAMES
         radframe = ctk.CTkFrame(left_frame)
         radframe.grid(row=2, column=0, padx=14, pady=6, sticky='ew')
         inframe = ctk.CTkFrame(left_frame)
         inframe.grid(row=4, column=0, sticky='nsew', padx=14, pady=10)
         inframe.grid_columnconfigure(0, weight=1)
-        add_frame =ctk.CTkFrame(left_frame)
+        add_frame = ctk.CTkFrame(left_frame)
         add_frame.grid(row=3, column=0, padx=14, pady=(10, 6), sticky='ew')
         slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
         slider_frame.pack(fill='x', padx=4, pady=4)
-        vel_frame =ctk.CTkFrame(left_frame)
+        vel_frame = ctk.CTkFrame(left_frame)
         vel_frame.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
-# --------------------------
-#	MODE INPUTS
+        # --------------------------
+        #	MODE INPUTS
         entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
         entry_1.pack(pady=5)
         entry_1.pack_forget()
         joint_entries = []
         for i in range(5):
-            j = ctk.CTkEntry(inframe, placeholder_text=f"Joint {i+1} (rad)")
+            j = ctk.CTkEntry(inframe, placeholder_text=f"Joint {i + 1} (rad)")
             j.pack(pady=5)
             j.pack_forget()
             joint_entries.append(j)
@@ -595,109 +591,131 @@ class ArmGUI(ctk.CTk):
             c.pack(pady=5)
             c.pack_forget()
             self.coordinate_entries.append(c)
-        JOINT_LIMITS = [(-math.pi/2, math.pi/2)] * 5   # TODO: set real per-joint limits
+        JOINT_LIMITS = [(-math.pi / 2, math.pi / 2)] * 5  # TODO: set real per-joint limits
         JOINT_LIMITS[0] = (-math.pi, math.pi)
-        self.joint_sliders       = []
+        self.joint_sliders = []
         slider_value_labels = []
-        for i, (low, high) in enumerate(JOINT_LIMITS): # Still need to change limits display for joint 1
-            s = ctk.CTkFrame(slider_frame, fg_color='transparent')
-            s.pack(fill='x', padx=14, pady=3)
-            ctk.CTkLabel(s, text=f'J{i+1}', width=28, anchor='w').pack(side='left')
-            ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
-            ).pack(side='left', padx=(4, 2))
-            ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
-            ).pack(side='right', padx=(2, 4))
+        for i, (low, high) in enumerate(JOINT_LIMITS):  # Still need to change limits display for joint 1
+            if i != 0:
+                s = ctk.CTkFrame(slider_frame, fg_color='transparent')
+                s.pack(fill='x', padx=14, pady=3)
+                ctk.CTkLabel(s, text=f'J{i + 1}', width=28, anchor='w').pack(side='left')
+                ctk.CTkLabel(s, text='-pi/2', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+                             ).pack(side='left', padx=(4, 2))
+                ctk.CTkLabel(s, text="pi/2", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+                             ).pack(side='right', padx=(2, 4))
 
-            slider = ctk.CTkSlider(s, from_=low, to=high,orientation='horizontal', command=lambda val, idx=i: _on_slider(val, idx),)
-            slider.set(0)
-            slider.pack(side='left', fill='x', expand=True, padx=4)
+                slider = ctk.CTkSlider(s, from_=low, to=high, orientation='horizontal',
+                                       command=lambda val, idx=i: _on_slider(val, idx), )
+                slider.set(0)
+                slider.pack(side='left', fill='x', expand=True, padx=4)
 
-            values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
-            values.pack(side='left')
-            slider_value_labels.append(values)
-            self.joint_sliders.append(slider)
+                values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
+                values.pack(side='left')
+                slider_value_labels.append(values)
+                self.joint_sliders.append(slider)
+            if i == 0:
+                # the first slider needs it's limits displayed seperately
+                s = ctk.CTkFrame(slider_frame, fg_color='transparent')
+                s.pack(fill='x', padx=14, pady=3)
+                ctk.CTkLabel(s, text=f'J{i + 1}', width=28, anchor='w').pack(side='left')
+                ctk.CTkLabel(s, text='-pi', font=('Arial', 10), text_color='gray', width=36, anchor='e'
+                             ).pack(side='left', padx=(4, 2))
+                ctk.CTkLabel(s, text="pi", font=('Arial', 10), text_color='gray', width=36, anchor='w'
+                             ).pack(side='right', padx=(2, 4))
+
+                slider = ctk.CTkSlider(s, from_=-math.pi, to=math.pi, orientation='horizontal',
+                                       command=lambda val, idx=i: _on_slider(val, idx), )
+                slider.set(0)
+                slider.pack(side='left', fill='x', expand=True, padx=4)
+
+                values = ctk.CTkLabel(s, text='0 rad', width=48, anchor='w')
+                values.pack(side='left')
+                slider_value_labels.append(values)
+                self.joint_sliders.append(slider)
+
         slider_frame.pack_forget()
 
         def _on_slider(val, idx):
             slider_value_labels[idx].configure(text=f'{round(val, 1)}°')
             self.set_slider_joints([round(s.get(), 1) for s in self.joint_sliders])
-    
+
         def reset_sliders():
             for i, s in enumerate(self.joint_sliders):
                 s.set(0)
                 slider_value_labels[i].configure(text='0°')
             self.set_slider_joints([0.0] * 5)
             status_label.configure(text='Sliders reset to 0°')
-# --------------------------
-# RIGHT FRAME
+
+        # --------------------------
+        # RIGHT FRAME
         right_frame = ctk.CTkFrame(self)
-        right_frame.grid(row=0, column=1, sticky='nsew', padx=(6,12), pady=(12,6))
-    
+        right_frame.grid(row=0, column=1, sticky='nsew', padx=(6, 12), pady=(12, 6))
+
         right_frame.grid_columnconfigure(0, weight=1)
-        right_frame.grid_rowconfigure(0, weight=1)   
-        right_frame.grid_rowconfigure(1, weight=0)  
+        right_frame.grid_rowconfigure(0, weight=1)
+        right_frame.grid_rowconfigure(1, weight=0)
         right_frame.grid_rowconfigure(2, weight=0)
         right_frame.grid_rowconfigure(3, weight=0)
         graph = ctk.CTkFrame(right_frame)
-        graph.grid(row=2, column=0, sticky='nsew', padx=8, pady=(4,4))
+        graph.grid(row=2, column=0, sticky='nsew', padx=8, pady=(4, 4))
         graph.grid_rowconfigure(1, weight=1)
         graph.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(graph, text='Animation').grid(row=0, column=0, pady=(6,2))
-# --------------------------
-#	3D WIDGET (in main function - right frame)
+        ctk.CTkLabel(graph, text='Animation').grid(row=0, column=0, pady=(6, 2))
+        # --------------------------
+        #	3D WIDGET (in main function - right frame)
         fig = Figure(figsize=(9, 6), dpi=110, facecolor='#2b2b2b')
         ax = fig.add_subplot(111, projection='3d')
         ax.set_facecolor('#1e1e1e')
-        ax.set_proj_type('ortho') # so that it doesn't have perspective distortion
-    
+        ax.set_proj_type('ortho')  # so that it doesn't have perspective distortion
+
         canvas = FigureCanvasTkAgg(fig, master=graph)
         canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew', padx=8, pady=8)
 
-    	# Styling
+        # Styling
         ax.set_xlabel('X (mm)', color='white')
         ax.set_ylabel('Y (mm)', color='white')
         ax.set_zlabel('Z (mm)', color='white')
         ax.set_title('5-DOF Robot Arm - Real Time', color='white', pad=15)
         ax.grid(True, alpha=0.3)
-    
-    	# Wide view so base is in center and full 360° rotation is visible
+
+        # Wide view so base is in center and full 360° rotation is visible
         ax.set_xlim(-400, 400)
         ax.set_ylim(-400, 400)
         ax.set_zlim(0, 600)
         ax.view_init(elev=25, azim=-60)
-    
+
         # update the tick values to white
         ax.tick_params(axis='x', colors='white')
         ax.tick_params(axis='y', colors='white')
         ax.tick_params(axis='z', colors='white')
 
-    	# Store references
+        # Store references
         self.fig = fig
         self.ax = ax
         self.canvas = canvas
         self.robot_lines = None
         self.joint_scatter = None
 
-# --------------------------
-#	START REAL TIME ANIMATION AND FEEDBACK
+        # --------------------------
+        #	START REAL TIME ANIMATION AND FEEDBACK
         self.after(10, lambda: self.update_robot_visualization())
         self.after(10, lambda: self.update_robot_feedback())
-        
+
         # self.update_robot_visualization()
-    
-    
-# --------------------------
-#	SHOW VALUES
+
+        # --------------------------
+        #	SHOW VALUES
         def show_inputs():
             selected = mode.get()
             entry_1.pack_forget()
             slider_frame.pack_forget()
-    
+
             for j in joint_entries:
                 j.pack_forget()
             for c in self.coordinate_entries:
                 c.pack_forget()
-    
+
             if selected == 1:
                 entry_1.pack()
             elif selected == 2:
@@ -708,24 +726,26 @@ class ArmGUI(ctk.CTk):
                     c.pack()
             elif selected == 4:
                 slider_frame.pack(fill='x', padx=4, pady=4)
-# --------------------------
-#	STATUS UPDATES
+
+        # --------------------------
+        #	STATUS UPDATES
         status_label = ctk.CTkLabel(right_frame, text='', text_color='gray')
         status_label.grid(row=3, column=0, pady=(0, 6))
-    
-# --------------------------
-#	FRAME
+
+        # --------------------------
+        #	FRAME
         button_frame = ctk.CTkFrame(right_frame, fg_color='transparent')
         button_frame.grid(row=1, column=0, columnspan=2, sticky='ew', padx=12, pady=(0, 10))
         button_frame.grid_columnconfigure(tuple(range(6)), weight=1)
-# --------------------------
-#	VALIDATION
+
+        # --------------------------
+        #	VALIDATION
         def validate(values):
             try:
                 return all(v != '' and float(v) for v in values)
             except ValueError:
                 return False
-    
+
         def save_file(selected, data: dict):
             try:
                 with open('user_input.txt', 'w') as f:
@@ -739,48 +759,46 @@ class ArmGUI(ctk.CTk):
                 status_label.configure(text='Saved to user_input.txt', text_color='green')
             except IOError as e:
                 status_label.configure(text=f'File error: {e}', text_color='red')
-    
-# --------------------------
-#	RADIO BUTTONS
-    
+
+        # --------------------------
+        #	RADIO BUTTONS
+
         ctk.CTkRadioButton(radframe, text="Mode 1",
-                        variable=mode, value=1,
-                        command=show_inputs).pack(anchor ='w', padx=10, pady=6)
-    
+                           variable=mode, value=1,
+                           command=show_inputs).pack(anchor='w', padx=10, pady=6)
+
         ctk.CTkRadioButton(radframe, text="Mode 2",
-                        variable=mode, value=2,
-                        command=show_inputs).pack(anchor ='w', padx=10, pady=6)
-    
+                           variable=mode, value=2,
+                           command=show_inputs).pack(anchor='w', padx=10, pady=6)
+
         ctk.CTkRadioButton(radframe, text="Mode 3",
-                        variable=mode, value=3,
-                        command=show_inputs).pack(anchor ='w', padx=10, pady=6)
-    
-        ctk.CTkRadioButton(radframe, text = 'Manual control',
-                        variable=mode, value=4,
-                        command=show_inputs).pack(anchor ='w', padx=10, pady=6)
-    
-# --------------------------
-#	DISPLAY VALUES
+                           variable=mode, value=3,
+                           command=show_inputs).pack(anchor='w', padx=10, pady=6)
+
+        ctk.CTkRadioButton(radframe, text='Manual control',
+                           variable=mode, value=4,
+                           command=show_inputs).pack(anchor='w', padx=10, pady=6)
+
+        # --------------------------
+        #	DISPLAY VALUES
         tabview = ctk.CTkTabview(right_frame)
         tabview.grid(row=0, column=0, sticky='nsew', padx=8, pady=(8, 4))
-    
+
         tabview.add("joint positions")
         tabview.add("coordinates")
         tabview.add('slider values')
-    
-        
+
         joint_frame = ctk.CTkScrollableFrame(tabview.tab("joint positions"), height=80)
         joint_frame.pack(fill="both", expand=True)
         coordinate_frame = ctk.CTkScrollableFrame(tabview.tab("coordinates"), height=80)
         coordinate_frame.pack(fill="both", expand=True)
 
-
         joint_count = [0]
         coordinate_count = [0]
-    
+
         def add_values():
             selected = mode.get()
-            
+
             if selected == 2:
                 vals = [j.get() for j in joint_entries]
                 if not validate(vals):
@@ -789,12 +807,14 @@ class ArmGUI(ctk.CTk):
 
                 self.posCommand_list.append(vals)
                 joint_count[0] += 1
-                ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
-                status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}",text_color='green')
+                ctk.CTkLabel(joint_frame,
+                             text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(
+                    anchor="w", pady=2)
+                status_label.configure(text=f"Added J{joint_count[0]}: {', '.join(vals)}", text_color='green')
                 for j in joint_entries: j.delete(0, 'end')
 
-                
-            
+
+
             elif selected == 3:
                 vals = [c.get() for c in self.coordinate_entries]
                 if not validate(vals):
@@ -818,45 +838,46 @@ class ArmGUI(ctk.CTk):
 
                 except ValueError:
                     status_label.configure(text='Please enter valid numbers', text_color='red')
-    
+
             elif selected == 4:
                 vals = [slider.get for slider in self.joint_sliders]
                 if not validate(vals):
                     status_label.configure(text='Invalid or missing values.', text_color='red')
                     return
-                ctk.CTkLabel(joint_frame, text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(anchor="w", pady=2)
+                ctk.CTkLabel(joint_frame,
+                             text=f"{joint_count}: J1 = {vals[0]}, J2 = {vals[1]}, J3 = {vals[2]}, J4 = {vals[3]}, J5 = {vals[4]}").pack(
+                    anchor="w", pady=2)
 
 
             else:
                 status_label.configure(text='Select mode 2, 3, or Manual to add values.', text_color='red')
-    
+
         ctk.CTkButton(add_frame, text='Add Values', command=add_values).pack(pady=6, padx=10, fill='x')
 
-# --------------------------
-#	VELOCITY
-        VEL_LIMITS = [(0, 100)] * 5   # TODO: set real per-joint limits
-        self.vel_sliders       = []
+        # --------------------------
+        #	VELOCITY
+        VEL_LIMITS = [(0, 100)] * 5  # TODO: set real per-joint limits
+        self.vel_sliders = []
         vel_value_labels = []
+
         def vel():
-        
+
             if switch_var.get() == 'on':
                 self.switch = True
                 v.pack(fill='x', padx=10, pady=(0, 6))
             else:
                 self.switch = False
                 v.pack_forget()
-    
-            
+
         v = ctk.CTkFrame(vel_frame, fg_color='transparent')
         ctk.CTkLabel(v, text=f'Velocity', width=28, anchor='w').pack(side='top')
-    
-    
 
         ctk.CTkLabel(v, text=f'{0}', font=('Arial', 10), text_color='gray', width=36, anchor='e'
-        ).pack(side='left', padx=(4, 2))
+                     ).pack(side='left', padx=(4, 2))
         ctk.CTkLabel(v, text=f'{100}', font=('Arial', 10), text_color='gray', width=36, anchor='w'
-        ).pack(side='right', padx=(2, 4))
-        vel_slider = ctk.CTkSlider(v, from_=0, to=100,orientation='horizontal', command=lambda val: vel_value.configure(text=f'{round(val, 1)}'))
+                     ).pack(side='right', padx=(2, 4))
+        vel_slider = ctk.CTkSlider(v, from_=0, to=100, orientation='horizontal',
+                                   command=lambda val: vel_value.configure(text=f'{round(val, 1)}'))
         vel_slider.set(0)
         vel_slider.pack(side='left', fill='x', expand=True, padx=4)
         vel_value = ctk.CTkLabel(v, text='0', width=48, anchor='w')
@@ -864,8 +885,8 @@ class ArmGUI(ctk.CTk):
         vel_value_labels.append(vel_value)
         self.vel_sliders.append(vel_slider)
         switch_var = ctk.StringVar(value="off")
-        ctk.CTkSwitch(vel_frame, text='ARM Velocity', command=vel, variable=switch_var, onvalue="on", offvalue="off").pack(pady=6, padx=10, fill='x')
-
+        ctk.CTkSwitch(vel_frame, text='ARM Velocity', command=vel, variable=switch_var, onvalue="on",
+                      offvalue="off").pack(pady=6, padx=10, fill='x')
 
         # def vect_compare(posCommand, posActual):
         #     # print("Entered Vect Compare")
@@ -877,8 +898,8 @@ class ArmGUI(ctk.CTk):
         #     # print("Exiting Vect Compare: True")
         #     return True
 
-# --------------------------
-#	FEEDBACK
+        # --------------------------
+        #	FEEDBACK
 
         self.feedframe = ctk.CTkFrame(left_frame)
         self.feedframe.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
@@ -893,12 +914,11 @@ class ArmGUI(ctk.CTk):
         self.depth_label = ctk.CTkLabel(self.feedframe, text=f"Depth (m): \n0")
         self.depth_label.grid(row=2, column=0, pady=(0, 6))
 
-
-# --------------------------
-#	RUN
+        # --------------------------
+        #	RUN
         def run():
             selected = mode.get()
-    
+
             if selected == 1:
                 obj = entry_1.get()
                 if not obj:
@@ -909,7 +929,7 @@ class ArmGUI(ctk.CTk):
                 self.search_object = obj
                 self.tick_timer = self.node.create_timer(1 / 30, self.tick)
 
-            elif selected ==  2:
+            elif selected == 2:
                 # print(f"Points Entered: {self.posCommand_list}")
                 for i in range(len(self.posCommand_list)):
                     diff = self.vect_compare()
@@ -919,63 +939,63 @@ class ArmGUI(ctk.CTk):
                     for j in range(5):
                         self.posCommand[j] = float(self.posCommand_list[i][j])
                     self.arm_command_publisher()
-                
-            elif selected ==  3:
+
+            elif selected == 3:
                 for point in self.xyzCommand_list:
                     x, y, z = point
 
                 ikValues = self.xyz_inverse(x, y, z)
-                if ikValues[1] > math.pi/2:
+                if ikValues[1] > math.pi / 2:
                     ikValues = self.xyz_inverse2(x, y, z)
                 if ikValues[5] > 1.0:
                     print('Outside of workspace: Pointing to coordinate')
                 for i in range(5):
                     self.posCommand[i] = ikValues[i]
                 self.arm_command_publisher()
-    
-            elif selected ==  4:
-                for i in range (5):
+
+            elif selected == 4:
+                for i in range(5):
                     self.posCommand[i] = float(self.joint_sliders[i].get())
                 self.arm_command_publisher()
 
-# --------------------------
-#	BUTTON FUNCTIONS
+        # --------------------------
+        #	BUTTON FUNCTIONS
         def open_gripper():
-            #node.publish_gripper('open')
+            # node.publish_gripper('open')
             self.posCommand[5] = 0.0
             status_label.configure(text='Gripper opening', text_color='green')
-    
+
         def close_gripper():
-            #node.publish_gripper('close')
+            # node.publish_gripper('close')
             self.posCommand[5] = 1.0
             status_label.configure(text='Gripper closing', text_color='green')
 
-    
-            
-# --------------------------
-#	BUTTONS
+        # --------------------------
+        #	BUTTONS
         for col, (txt, cmd, kw) in enumerate([
-            ('Run',           run,          {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
-            ('Open Gripper',  open_gripper, {}),
-            ('Close Gripper', close_gripper,{}),
-            ('Reset Sliders', reset_sliders,{'fg_color': 'gray40', 'hover_color': 'gray25'}),
+            ('Run', run, {'fg_color': '#2d6a4f', 'hover_color': '#1b4332'}),
+            ('Open Gripper', open_gripper, {}),
+            ('Close Gripper', close_gripper, {}),
+            ('Reset Sliders', reset_sliders, {'fg_color': 'gray40', 'hover_color': 'gray25'}),
         ]):
             ctk.CTkButton(button_frame, text=txt, command=cmd, width=100, **kw).grid(
                 row=0, column=col, padx=4
             )
-    
+
         return self
-    
-# --------------------------
-#	END FUNCTIONS
+
+    # --------------------------
+    #	END FUNCTIONS
     def run_ui(self):
         def ros_spin():
             rclpy.spin(self.node)
+
         self.main()
         ros_thread = threading.Thread(target=ros_spin, daemon=True)
         ros_thread.start()
         self.mainloop()
         self.node.destroy_node()
+
 
 def main():
     rclpy.init()
@@ -986,6 +1006,7 @@ def main():
         pass
     finally:
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

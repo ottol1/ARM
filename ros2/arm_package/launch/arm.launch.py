@@ -123,6 +123,12 @@ def generate_launch_description():
         executable='arm_gui_animation'
     )
 
+    ex_joint_goal_node = Node(
+        package='pymoveit2',
+        executable='ex_joint_goal.py',
+        arguments=['--ros-args', '-p', 'cancel_after_secs:=0.0', '-p', 'synchronous:=False']
+    )
+
     return LaunchDescription([
         # ros2_control_hardware_type,
         # rviz_node,
@@ -132,6 +138,7 @@ def generate_launch_description():
         # ros2_control_node,
         # joint_state_broadcaster_spawner,
         # arm_robot_controller_spawner,
-        opencm_command_node,
+        # opencm_command_node,
         arm_command_node,
+        ex_joint_goal_node,
     ])
