@@ -126,7 +126,7 @@ def generate_launch_description():
     ex_joint_goal_node = Node(
         package='pymoveit2',
         executable='ex_joint_goal.py',
-        arguments=['--ros-args', '-p', 'cancel_after_secs:=0.0', '-p', 'synchronous:=False']
+        arguments=['--ros-args', '-p', 'cancel_after_secs:=0.0']
     )
 
     return LaunchDescription([
