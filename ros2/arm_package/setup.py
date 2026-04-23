@@ -40,6 +40,7 @@ entry_points={
             # 'arm_gui = arm_package.arm_gui:main',
             'vision_motion = arm_package.vision_motion:main',
             'arm_gui_animation = arm_package.arm_gui_animation:main',
+            'arm_gui_rviz = arm_package.arm_gui_rviz:main',
         ],
     },
 )

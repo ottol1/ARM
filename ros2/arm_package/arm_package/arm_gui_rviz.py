@@ -21,12 +21,14 @@ from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray
 from std_msgs.msg import String
 from math import floor
-
+from pymoveit2.moveit2 import MoveIt2
 
 class ArmGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.node = rclpy.create_node('arm_command_node')
+
+
         self.slider_joints = [0.0] * 5
         self.slider_lock = threading.Lock()
         self.posCommand = [0.0] * 6
@@ -46,28 +48,34 @@ class ArmGUI(ctk.CTk):
         self.detection_check = 0
         self.search_object = ""
 
-        #	publish to the arm_controller/controller_state topic
+        # use Moveit2 to write the joint values to moveit
+        self.joint_names = ['shoulder_joint', 'upperarm_joint', 'forearm_joint', 'wrist_joint', 'frame_joint']
+        self.move_it = MoveIt2(node=self.node, base_link_name='base_link', end_effector_name='tool0', joint_names = self.joint_names) # check how this is supposed to import
+        
 
-        self.arm_publisher = self.node.create_publisher(
-            JointTrajectoryControllerState,
-            '/arm_controller/controller_state',
-            10
-        )
 
-        #	publish to the gripper_controller/controller_state topic
+        # #	publish to the arm_controller/controller_state topic
 
-        self.gripper_publisher = self.node.create_publisher(
-            JointTrajectoryControllerState,
-            'gripper_controller/controller_state',
-            10
-        )
+        # self.arm_publisher = self.node.create_publisher(
+        #     JointTrajectoryControllerState,
+        #     '/arm_controller/controller_state',
+        #     10
+        # )
 
-        #	publish to the joint_states topic
-        self.publisher = self.node.create_publisher(
-            JointState,
-            '/joint_states',
-            10
-        )
+        # #	publish to the gripper_controller/controller_state topic
+
+        # self.gripper_publisher = self.node.create_publisher(
+        #     JointTrajectoryControllerState,
+        #     'gripper_controller/controller_state',
+        #     10
+        # )
+
+        # #	publish to the joint_states topic
+        # self.publisher = self.node.create_publisher(
+        #     JointState,
+        #     '/joint_states',
+        #     10
+        # )
         #   publish input query to NanoOwl
         self.query_publisher = self.node.create_publisher(
             String,
@@ -117,78 +125,81 @@ class ArmGUI(ctk.CTk):
             self.detection = None
 
     def arm_command_publisher(self):
-        command = JointTrajectoryControllerState()
-        command2 = JointState()
-        if self.switch == True:
-            for i in range(6):
-                self.velCommand[i] = float(self.vel_sliders[0].get())
-        elif self.switch == False:
-            self.velCommand = [0.2] * 6
 
-        # joint names
-        command.joint_names = ['shoulder_joint', 'upperarm_joint', 'forearm_joint', 'wrist_joint', 'frame_joint']
+        self.move_it.move_to_configuration(joint_names=self.joint_names, joint_positions=self.posCommand[:5])
 
-        # desired, actual, error must be JointTrajectoryPoint
-        desired = JointTrajectoryPoint()
-        desired.positions = [float(x) for x in self.posCommand[:5]]
-        desired.velocities = [float(x) for x in self.velCommand[:5]]
-        desired.accelerations = []
-        desired.effort = []
-        desired.time_from_start = Duration(sec=0, nanosec=0)
+        # command = JointTrajectoryControllerState()
+        # command2 = JointState()
+        # if self.switch == True:
+        #     for i in range(6):
+        #         self.velCommand[i] = float(self.vel_sliders[0].get())
+        # elif self.switch == False:
+        #     self.velCommand = [0.2] * 6
 
-        actual = JointTrajectoryPoint()
-        actual.positions = [float(x) for x in self.posActual[:5]]
-        actual.velocities = [float(x) for x in self.velActual[:5]]
-        actual.accelerations = []
-        actual.effort = []
-        actual.time_from_start = Duration(sec=0, nanosec=0)
+        # # joint names
+        # command.joint_names = ['shoulder_joint', 'upperarm_joint', 'forearm_joint', 'wrist_joint', 'frame_joint']
 
-        error = JointTrajectoryPoint()
-        error.positions = [0.0] * 5
-        error.velocities = [0.0] * 5
-        error.accelerations = []
-        error.effort = []
-        error.time_from_start = Duration(sec=0, nanosec=0)
+        # # desired, actual, error must be JointTrajectoryPoint
+        # desired = JointTrajectoryPoint()
+        # desired.positions = [float(x) for x in self.posCommand[:5]]
+        # desired.velocities = [float(x) for x in self.velCommand[:5]]
+        # desired.accelerations = []
+        # desired.effort = []
+        # desired.time_from_start = Duration(sec=0, nanosec=0)
 
-        command.desired = desired
-        command.actual = actual
-        command.error = error
+        # actual = JointTrajectoryPoint()
+        # actual.positions = [float(x) for x in self.posActual[:5]]
+        # actual.velocities = [float(x) for x in self.velActual[:5]]
+        # actual.accelerations = []
+        # actual.effort = []
+        # actual.time_from_start = Duration(sec=0, nanosec=0)
 
-        self.arm_publisher.publish(command)
-        # self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic (so RViz can see it)
+        # error = JointTrajectoryPoint()
+        # error.positions = [0.0] * 5
+        # error.velocities = [0.0] * 5
+        # error.accelerations = []
+        # error.effort = []
+        # error.time_from_start = Duration(sec=0, nanosec=0)
 
-        grip_command = JointTrajectoryControllerState()
+        # command.desired = desired
+        # command.actual = actual
+        # command.error = error
 
-        # joint names
-        grip_command.joint_names = ['gripper']
+        # self.arm_publisher.publish(command)
+        # # self.publisher.publish(command2) # pass along /joint_states and republish it to the same topic (so RViz can see it)
 
-        # desired, actual, error must be JointTrajectoryPoint
-        grip_desired = JointTrajectoryPoint()
-        grip_desired.positions = [float(self.posCommand[5])]
-        grip_desired.velocities = [float(self.velCommand[5] * 40)]
-        grip_desired.accelerations = []
-        grip_desired.effort = []
-        grip_desired.time_from_start = Duration(sec=0, nanosec=0)
+        # grip_command = JointTrajectoryControllerState()
 
-        grip_actual = JointTrajectoryPoint()
-        grip_actual.positions = [float(self.posActual[5])]
-        grip_actual.velocities = [float(self.velActual[5])]
-        grip_actual.accelerations = []
-        grip_actual.effort = []
-        grip_actual.time_from_start = Duration(sec=0, nanosec=0)
+        # # joint names
+        # grip_command.joint_names = ['gripper']
 
-        grip_error = JointTrajectoryPoint()
-        grip_error.positions = [0.0] * 5
-        grip_error.velocities = [0.0] * 5
-        grip_error.accelerations = []
-        grip_error.effort = []
-        grip_error.time_from_start = Duration(sec=0, nanosec=0)
+        # # desired, actual, error must be JointTrajectoryPoint
+        # grip_desired = JointTrajectoryPoint()
+        # grip_desired.positions = [float(self.posCommand[5])]
+        # grip_desired.velocities = [float(self.velCommand[5] * 40)]
+        # grip_desired.accelerations = []
+        # grip_desired.effort = []
+        # grip_desired.time_from_start = Duration(sec=0, nanosec=0)
 
-        grip_command.desired = grip_desired
-        grip_command.actual = grip_actual
-        grip_command.error = grip_error
+        # grip_actual = JointTrajectoryPoint()
+        # grip_actual.positions = [float(self.posActual[5])]
+        # grip_actual.velocities = [float(self.velActual[5])]
+        # grip_actual.accelerations = []
+        # grip_actual.effort = []
+        # grip_actual.time_from_start = Duration(sec=0, nanosec=0)
 
-        self.gripper_publisher.publish(grip_command)
+        # grip_error = JointTrajectoryPoint()
+        # grip_error.positions = [0.0] * 5
+        # grip_error.velocities = [0.0] * 5
+        # grip_error.accelerations = []
+        # grip_error.effort = []
+        # grip_error.time_from_start = Duration(sec=0, nanosec=0)
+
+        # grip_command.desired = grip_desired
+        # grip_command.actual = grip_actual
+        # grip_command.error = grip_error
+
+        # self.gripper_publisher.publish(grip_command)
 
     def arm_state_subscriber(self, msg):
         self.posActual = list(msg.position)
@@ -573,7 +584,7 @@ class ArmGUI(ctk.CTk):
         slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
         slider_frame.pack(fill='x', padx=4, pady=4)
         vel_frame = ctk.CTkFrame(left_frame)
-        vel_frame.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
+        vel_frame.grid(row=6, column=0, padx=14, pady=(10, 6), sticky='ew')
         # --------------------------
         #	MODE INPUTS
         entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
