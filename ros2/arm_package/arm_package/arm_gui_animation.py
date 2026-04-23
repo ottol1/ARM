@@ -576,7 +576,7 @@ class ArmGUI(ctk.CTk):
         slider_frame = ctk.CTkFrame(inframe, fg_color='transparent')
         slider_frame.pack(fill='x', padx=4, pady=4)
         vel_frame =ctk.CTkFrame(left_frame)
-        vel_frame.grid(row=5, column=0, padx=14, pady=(10, 6), sticky='ew')
+        vel_frame.grid(row=6, column=0, padx=14, pady=(10, 6), sticky='ew')
 # --------------------------
 #	MODE INPUTS
         entry_1 = ctk.CTkEntry(inframe, placeholder_text="Object", width=260)
