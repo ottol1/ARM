@@ -3,8 +3,8 @@
 #sensor_d405:
 #  far_clipping_plane_distance: 0.2
 #  filtered_cloud_topic: filtered_cloud
-#  image_topic: /arm/D405/depth/image_rect_raw
-#  max_update_rate: 1.0
+#  image_topic: /arm/D405/aligned_depth_to_color/image_raw
+#  max_update_rate: 10.0
 #  near_clipping_plane_distance: 0.1
 #  padding_offset: 0.03
 #  padding_scale: 1.0
@@ -15,8 +15,8 @@ sensors:
   - sensor_d405
 sensor_d405:
   filtered_cloud_topic: filtered_cloud
-  max_range: 1.3 # meters
-  max_update_rate: 1.0
+  max_range: 0.7 # meters. Can actually be accurate up to 1.2 meters, but that's probably more computationally expensive
+  max_update_rate: 50.0
   padding_offset: 0.1 # 0.01 doesn't make it smaller
   padding_scale: 1.0
   point_cloud_topic: /arm/D405/depth/color/points
