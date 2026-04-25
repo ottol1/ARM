@@ -120,7 +120,7 @@ def generate_launch_description():
 
     arm_command_node = Node(
         package='arm_package',
-        executable='arm_gui_rviz'
+        executable='arm_gui_animation'
     )
 
 

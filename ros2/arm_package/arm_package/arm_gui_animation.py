@@ -239,7 +239,7 @@ class ArmGUI(ctk.CTk):
 
     def tick_start(self):
         print("start ")
-        self.posCommand = [-2.9, 0, 0, 1.37, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
+        self.posCommand = [2.0, 0, 0, 1.37, 0, self.posCommand[5]]# 2.9 rads for base, 1.3ish for wrist elevation
         self.arm_command_publisher()
         if self.vect_compare() == True:
             self.stater = 'searching'
@@ -248,8 +248,8 @@ class ArmGUI(ctk.CTk):
 
     def tick_search(self):
 
-        self.posCommand[0] = self.posCommand[0] + 0.015/2 # ~26 deg/s (because of how often the tick runs)
-        if self.posCommand[0] > 2.9:
+        self.posCommand[0] = self.posCommand[0] - 0.015/2 # ~26 deg/s (because of how often the tick runs)
+        if self.posCommand[0] < 0.0:
             self.stater = 'starting'
         else:
             self.arm_command_publisher()
